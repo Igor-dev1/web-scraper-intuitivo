@@ -1309,11 +1309,11 @@ if st.session_state.soup is not None:
                                             if valor:
                                                 valores.append(valor)
                                     
-                                    # Nome da coluna: Seletor_{número} ou usa o próprio seletor se for curto
-                                    col_name = f"Seletor_{selector_idx}" if len(selector) > 30 else selector
-                                    row[col_name] = valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores) + ('...' if len(valores) >= 5 else '')
+                                    # Usar sempre o seletor completo como nome da coluna
+                                    # Se for muito longo, o Streamlit trunca automaticamente na exibição
+                                    row[selector] = valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores) + ('...' if len(valores) >= 5 else '')
                                 except Exception as e:
-                                    row[f"Seletor_{selector_idx}"] = f"ERRO: {str(e)}"
+                                    row[selector] = f"ERRO: {str(e)}"
                             
                             all_data.append(row)
                         else:
