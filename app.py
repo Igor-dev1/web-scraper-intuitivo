@@ -1109,25 +1109,40 @@ if st.session_state.soup is not None:
             st.markdown("**Escolha o método de extração:**")
             bulk_method = st.radio(
                 "Método",
-                ["Seletor CSS", "XPath", "Tag HTML", "Classe CSS"],
-                horizontal=True,
+                ["⚡ Método Universal (Múltiplos Seletores)", "Seletor CSS", "XPath", "Tag HTML", "Classe CSS"],
+                horizontal=False,
                 key="bulk_method"
             )
-            if bulk_method == "Seletor CSS":
+            if bulk_method == "⚡ Método Universal (Múltiplos Seletores)":
+                st.info("💡 Cole múltiplos seletores (CSS, XPath, etc) - um por linha. Cada seletor virará uma coluna no resultado!")
+                bulk_selectors_text = st.text_area(
+                    "Seletores (um por linha)",
+                    placeholder="div.apphub_AppName\n//div[@class='game_area_purchase_game']/h1\nspan.discount_final_price\n//img[@class='game_header_image_full']/@src",
+                    height=150,
+                    key="bulk_universal_selectors"
+                )
+                bulk_selector = None
+            elif bulk_method == "Seletor CSS":
                 bulk_selector = st.text_input("Seletor CSS", placeholder="div.produto", key="bulk_css")
+                bulk_selectors_text = None
             elif bulk_method == "XPath":
                 bulk_selector = st.text_input("Expressão XPath", placeholder="//div[@class='produto']", key="bulk_xpath")
+                bulk_selectors_text = None
             elif bulk_method == "Tag HTML":
                 bulk_selector = st.text_input("Nome da Tag", placeholder="h1", key="bulk_tag")
+                bulk_selectors_text = None
             else:
                 bulk_selector = st.text_input("Nome da Classe", placeholder="produto-preco", key="bulk_class")
-            col1, col2 = st.columns([1, 1])
-            with col1:
-                extract_bulk_text = st.checkbox("Extrair texto", value=True, key="bulk_text")
-            with col2:
-                extract_bulk_attrs = st.checkbox("Extrair atributos", key="bulk_attrs")
-            if extract_bulk_attrs:
-                bulk_attr_name = st.text_input("Nome do atributo", placeholder="href", key="bulk_attr")
+                bulk_selectors_text = None
+            
+            if bulk_method != "⚡ Método Universal (Múltiplos Seletores)":
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    extract_bulk_text = st.checkbox("Extrair texto", value=True, key="bulk_text")
+                with col2:
+                    extract_bulk_attrs = st.checkbox("Extrair atributos", key="bulk_attrs")
+                if extract_bulk_attrs:
+                    bulk_attr_name = st.text_input("Nome do atributo", placeholder="href", key="bulk_attr")
         else:
             st.info("💡 Os seletores da IA serão aplicados automaticamente em todas as URLs!")
         if st.button("🚀 Iniciar Scraping em Massa", type="primary", key="bulk_scrape_button"):
@@ -1135,7 +1150,7 @@ if st.session_state.soup is not None:
             
             if not urls_list and not uploaded_files:
                 st.warning("⚠️ Insira pelo menos uma URL ou faça upload de arquivos HTML")
-            elif not use_ai_selectors and not bulk_selector:
+            elif not use_ai_selectors and not bulk_selector and not bulk_selectors_text:
                 st.warning("⚠️ Insira um seletor")
             else:
                 all_data = []
@@ -1210,6 +1225,48 @@ if st.session_state.soup is not None:
                                     row[descricao] = valores[0] if len(valores) == 1 else ', '.join(valores[:5]) + ('...' if len(valores) > 5 else '')
                                 except:
                                     row[descricao] = ''
+                            all_data.append(row)
+                        elif bulk_method == "⚡ Método Universal (Múltiplos Seletores)" and bulk_selectors_text:
+                            # Processar múltiplos seletores - uma linha por URL
+                            row = {'Fonte': identifier}
+                            selectors_list = [s.strip() for s in bulk_selectors_text.strip().split('\n') if s.strip()]
+                            
+                            for selector_idx, selector in enumerate(selectors_list, 1):
+                                try:
+                                    # Detectar se é XPath ou CSS
+                                    is_xpath = any([
+                                        selector.startswith('//'),
+                                        selector.startswith('/'),
+                                        selector.startswith('./'),
+                                        selector.startswith('(//'),
+                                        '::' in selector,
+                                        '@' in selector and '/' in selector
+                                    ])
+                                    
+                                    if is_xpath:
+                                        tree = lxml_html.fromstring(html_content if html_content else response.text)
+                                        elements = tree.xpath(selector)
+                                        if elements:
+                                            if isinstance(elements[0], str):
+                                                valores = elements[:5]
+                                            else:
+                                                valores = [elem.text_content().strip() if hasattr(elem, 'text_content') else str(elem) for elem in elements[:5]]
+                                        else:
+                                            valores = []
+                                    else:
+                                        # CSS
+                                        elements = soup.select(selector)
+                                        if elements:
+                                            valores = [elem.get_text(strip=True) for elem in elements[:5]]
+                                        else:
+                                            valores = []
+                                    
+                                    # Nome da coluna: Seletor_{número} ou usa o próprio seletor se for curto
+                                    col_name = f"Seletor_{selector_idx}" if len(selector) > 30 else selector
+                                    row[col_name] = valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores) + ('...' if len(valores) >= 5 else '')
+                                except Exception as e:
+                                    row[f"Seletor_{selector_idx}"] = f"ERRO: {str(e)}"
+                            
                             all_data.append(row)
                         else:
                             if bulk_method == "Seletor CSS":
