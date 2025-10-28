@@ -1254,38 +1254,24 @@ if st.session_state.soup is not None:
                                     
                                     if tipo == 'css':
                                         elements = soup.select(seletor)
-                                        if extrair_html:
-                                            # Para imagens e descrições completas, extrair HTML
-                                            valores = []
-                                            for elem in elements:
-                                                # Se for tag <img>, pegar o src
-                                                if elem.name == 'img':
-                                                    valores.append(elem.get('src', ''))
-                                                else:
-                                                    # Para outros casos, pegar o HTML completo (com imagens)
-                                                    valores.append(str(elem))
-                                        else:
-                                            # Para texto normal
-                                            valores = [elem.get_text(strip=True) for elem in elements]
+                                        valores = []
+                                        for elem in elements:
+                                            valor = extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html)
+                                            if valor:
+                                                valores.append(valor)
                                     elif tipo == 'xpath':
                                         tree = lxml_html.fromstring(html_content if html_content else response.text)
                                         elements = tree.xpath(seletor)
+                                        is_xpath_attr = isinstance(elements[0], str) if elements else False
                                         valores = []
                                         for elem in elements:
-                                            if isinstance(elem, str):
-                                                valores.append(elem)
-                                            elif hasattr(elem, 'text_content'):
-                                                if extrair_html:
-                                                    # Para HTML completo
-                                                    valores.append(etree.tostring(elem, encoding='unicode'))
-                                                else:
-                                                    valores.append(elem.text_content().strip())
-                                            else:
-                                                valores.append(str(elem))
+                                            valor = extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
+                                            if valor:
+                                                valores.append(valor)
                                     else:
                                         valores = []
                                     row[descricao] = valores[0] if len(valores) == 1 else ', '.join(valores[:5]) + ('...' if len(valores) > 5 else '')
-                                except:
+                                except Exception as e:
                                     row[descricao] = ''
                             all_data.append(row)
                         elif bulk_method == "⚡ Método Universal (Múltiplos Seletores)" and bulk_selectors_text:
