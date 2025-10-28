@@ -65,50 +65,60 @@ def extract_element_value(elem, selector, tipo='css', is_xpath_attr=False, extra
         str: Valor extraído (texto, atributo ou HTML)
     """
     try:
-        # Se for atributo XPath, retornar direto
+        # 1. Se for atributo XPath (string), retornar direto
         if is_xpath_attr and isinstance(elem, str):
             return elem
         
-        # Detecção automática de imagens/atributos
-        auto_detect_img = False
-        auto_detect_attr = None
+        # 2. Detectar automaticamente o tipo de extração baseado no seletor
+        selector_lower = selector.lower() if selector else ''
         
-        if tipo == 'css':
-            # CSS: detectar tags de imagem ou seletores com atributos
-            if hasattr(elem, 'name'):
-                if elem.name == 'img':
-                    auto_detect_img = True
-                    auto_detect_attr = 'src'
-                elif elem.name == 'a' and elem.get('href'):
-                    # Se for link, pode querer o href
-                    if 'href' in selector.lower() or '@href' in selector:
-                        auto_detect_attr = 'href'
+        # Detectar se o seletor pede atributos específicos
+        wants_src = '/@src' in selector or 'src' in selector_lower
+        wants_href = '/@href' in selector or 'href' in selector_lower
+        wants_img = 'img' in selector_lower or wants_src
         
-        # Se detectou imagem, extrair src
-        if auto_detect_img and auto_detect_attr and hasattr(elem, 'get'):
-            value = elem.get(auto_detect_attr, '')
-            if value:
-                return value
-        
-        # Se deve extrair HTML completo
-        if extrair_html:
-            if tipo == 'css':
+        # 3. CSS: Extrair de forma inteligente
+        if tipo == 'css' and hasattr(elem, 'name'):
+            # Se for tag IMG ou seletor pede SRC
+            if elem.name == 'img' or wants_img:
+                src = elem.get('src', '') or elem.get('data-src', '')
+                if src:
+                    return src
+            
+            # Se for tag A ou seletor pede HREF
+            if elem.name == 'a' or wants_href:
+                href = elem.get('href', '')
+                if href:
+                    return href
+            
+            # Se deve extrair HTML completo (descrições com imagens/GIFs)
+            if extrair_html:
                 return str(elem)
-            elif tipo == 'xpath' and hasattr(elem, 'tag'):
-                return lxml_html.tostring(elem, encoding='unicode')
-        
-        # Extração padrão de texto
-        if tipo == 'css':
+            
+            # Extração padrão de texto
             return elem.get_text(strip=True)
+        
+        # 4. XPath: Extrair de forma inteligente
         elif tipo == 'xpath':
+            # Se deve extrair HTML completo
+            if extrair_html and hasattr(elem, 'tag'):
+                return lxml_html.tostring(elem, encoding='unicode')
+            
+            # Extração padrão de texto
             if hasattr(elem, 'text_content'):
                 return elem.text_content().strip()
             else:
                 return str(elem)
         
-        return str(elem)
-    except:
-        return str(elem)
+        # 5. Fallback padrão
+        if tipo == 'css':
+            return elem.get_text(strip=True) if hasattr(elem, 'get_text') else str(elem)
+        else:
+            return elem.text_content().strip() if hasattr(elem, 'text_content') else str(elem)
+            
+    except Exception as e:
+        # Em caso de erro, retornar string vazia ao invés de gerar exceção
+        return ''
 
 # 🤖 GERENCIAMENTO DE SCRAPING AUTOMÁTICO
 SCRAPING_TASKS_FILE = "scraping_tasks.json"
