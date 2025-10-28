@@ -29,85 +29,12 @@ try:
 except ImportError:
     GEMINI_AVAILABLE = False
 
-# 🔑 GERENCIAMENTO HÍBRIDO DE API KEYS
-API_KEYS_FILE = "api_keys.json"
-
-def load_custom_api_keys():
-    """Carrega API keys customizadas do arquivo JSON"""
-    try:
-        if os.path.exists(API_KEYS_FILE):
-            with open(API_KEYS_FILE, 'r') as f:
-                return json.load(f)
-        return {}
-    except:
-        return {}
-
-def save_custom_api_keys(keys_dict):
-    """Salva API keys customizadas no arquivo JSON"""
-    try:
-        with open(API_KEYS_FILE, 'w') as f:
-            json.dump(keys_dict, f, indent=2)
-        return True
-    except:
-        return False
-
-def add_custom_api_key(key_name, key_value):
-    """Adiciona nova API key customizada"""
-    keys = load_custom_api_keys()
-    key_name = key_name.strip().upper().replace(' ', '_')
-    key_value = key_value.strip()
-    if key_name and key_value:
-        keys[key_name] = key_value
-        return save_custom_api_keys(keys)
-    return False
-
-def remove_custom_api_key(key_name):
-    """Remove API key customizada"""
-    keys = load_custom_api_keys()
-    if key_name in keys:
-        del keys[key_name]
-        return save_custom_api_keys(keys)
-    return False
-
-def mask_api_key(key_value):
-    """Mascara API key para exibição segura"""
-    if not key_value or len(key_value) < 8:
-        return "***"
-    return f"{key_value[:4]}...{key_value[-4:]}"
-
+# 🔑 GERENCIAMENTO SIMPLIFICADO DE API KEYS
 def get_api_key(key_name):
     """
-    Sistema HÍBRIDO de API Keys:
-    1. Prioriza Replit Secrets (mais seguro)
-    2. Fallback para arquivo customizado (mais conveniente)
+    Obtém API key das variáveis de ambiente (Streamlit Secrets)
     """
-    # Primeiro: tentar Replit Secrets
-    env_key = os.getenv(key_name)
-    if env_key:
-        return env_key
-    
-    # Segundo: tentar arquivo customizado
-    custom_keys = load_custom_api_keys()
-    return custom_keys.get(key_name)
-
-def get_all_available_keys():
-    """Retorna todas as API keys disponíveis (Secrets + Custom)"""
-    all_keys = {}
-    
-    # Keys do Replit Secrets
-    secret_keys = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY']
-    for key_name in secret_keys:
-        value = os.getenv(key_name)
-        if value:
-            all_keys[key_name] = {'value': value, 'source': 'Replit Secrets', 'removable': False}
-    
-    # Keys customizadas do arquivo
-    custom_keys = load_custom_api_keys()
-    for key_name, value in custom_keys.items():
-        if key_name not in all_keys:  # Secrets tem prioridade
-            all_keys[key_name] = {'value': value, 'source': 'Customizada', 'removable': True}
-    
-    return all_keys
+    return os.getenv(key_name)
 
 # 🤖 GERENCIAMENTO DE SCRAPING AUTOMÁTICO
 SCRAPING_TASKS_FILE = "scraping_tasks.json"
@@ -531,8 +458,8 @@ if not st.session_state.authenticated:
             else:
                 st.error("❌ Usuário ou senha incorretos!")
     
-    st.info("💡 **Credenciais:** configuradas via Replit Secrets")
-    st.caption("Use as credenciais configuradas em: Tools → Secrets → ADMIN_USERNAME e ADMIN_PASSWORD")
+    st.info("💡 **Credenciais:** configuradas via Streamlit Secrets")
+    st.caption("Configure em: Settings → Secrets → ADMIN_USERNAME e ADMIN_PASSWORD")
     st.stop()
 
 # Botão de logout no sidebar
@@ -573,71 +500,6 @@ if 'url' not in st.session_state:
 # Sidebar para configurações
 with st.sidebar:
     st.header("⚙️ Configurações")
-    
-    # 🔑 PAINEL DE GERENCIAMENTO DE API KEYS (só para admin)
-    if st.session_state.get('is_admin', False):
-        with st.expander("🔑 Gerenciar API Keys (Admin)", expanded=False):
-            st.markdown("**API Keys Disponíveis:**")
-            st.caption("🔒 Keys do Replit Secrets têm prioridade e não podem ser removidas aqui")
-            
-            # Listar todas as keys disponíveis
-            all_keys = get_all_available_keys()
-            
-            if all_keys:
-                for key_name, key_info in all_keys.items():
-                    col1, col2, col3 = st.columns([2, 2, 1])
-                    with col1:
-                        icon = "🔒" if key_info['source'] == 'Replit Secrets' else "🔑"
-                        st.text(f"{icon} {key_name}")
-                    with col2:
-                        st.text(f"{mask_api_key(key_info['value'])} ({key_info['source']})")
-                    with col3:
-                        if key_info['removable']:
-                            if st.button("🗑️", key=f"remove_key_{key_name}", help="Remover API key"):
-                                if remove_custom_api_key(key_name):
-                                    st.success(f"✅ {key_name} removida!")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Erro ao remover")
-            else:
-                st.info("Nenhuma API key configurada ainda")
-            
-            st.divider()
-            
-            # Formulário para adicionar nova key
-            st.markdown("**Adicionar Nova API Key:**")
-            with st.form("add_api_key_form"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    new_key_name = st.text_input(
-                        "Nome da Key",
-                        placeholder="MINHA_API_KEY",
-                        help="Exemplo: OPENAI_API_KEY, CUSTOM_SERVICE_KEY"
-                    )
-                with col2:
-                    new_key_value = st.text_input(
-                        "Valor da Key",
-                        type="password",
-                        placeholder="sk-...",
-                        help="Cole aqui o valor da API key"
-                    )
-                
-                submit_key = st.form_submit_button("➕ Adicionar API Key", use_container_width=True)
-                
-                if submit_key:
-                    if new_key_name and new_key_value:
-                        if add_custom_api_key(new_key_name, new_key_value):
-                            st.success(f"✅ {new_key_name.upper()} adicionada com sucesso!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Erro ao adicionar API key")
-                    else:
-                        st.warning("⚠️ Preencha nome e valor da key")
-            
-            st.caption(f"📊 Total de API keys: {len(all_keys)}")
-            st.caption("💡 Dica: Keys do Replit Secrets são mais seguras. Use 'Tools → Secrets' para gerenciá-las.")
-        
-        st.divider()
     
     # Método de carregamento
     st.markdown("**Método de Carregamento:**")
@@ -910,7 +772,7 @@ else:
                     api_key = st.text_input("API Key", type="password", key="ai_api_key_manual")
             else:
                 st.info(f"ℹ️ {api_key_hint}")
-                st.caption("💡 Você pode adicionar a key em 'Gerenciar API Keys (Admin)' na sidebar")
+                st.caption("💡 Configure suas API keys em Settings → Secrets no Streamlit Cloud")
                 api_key = st.text_input(f"API Key do {ai_provider}", type="password", key="ai_api_key")
             
             st.divider()
