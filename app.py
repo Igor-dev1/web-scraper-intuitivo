@@ -48,6 +48,68 @@ def get_api_key(key_name):
     """
     return get_secret(key_name)
 
+# 🔧 FUNÇÃO UNIFICADA DE EXTRAÇÃO (usada em todas as abas)
+def extract_element_value(elem, selector, tipo='css', is_xpath_attr=False, extrair_html=False):
+    """
+    Função unificada para extrair valores de elementos HTML de forma inteligente.
+    Usada por todas as abas para garantir consistência.
+    
+    Args:
+        elem: Elemento BeautifulSoup ou lxml
+        selector: O seletor usado (para detecção automática)
+        tipo: 'css' ou 'xpath'
+        is_xpath_attr: True se for atributo XPath (ex: /@src)
+        extrair_html: True para forçar extração de HTML completo
+    
+    Returns:
+        str: Valor extraído (texto, atributo ou HTML)
+    """
+    try:
+        # Se for atributo XPath, retornar direto
+        if is_xpath_attr and isinstance(elem, str):
+            return elem
+        
+        # Detecção automática de imagens/atributos
+        auto_detect_img = False
+        auto_detect_attr = None
+        
+        if tipo == 'css':
+            # CSS: detectar tags de imagem ou seletores com atributos
+            if hasattr(elem, 'name'):
+                if elem.name == 'img':
+                    auto_detect_img = True
+                    auto_detect_attr = 'src'
+                elif elem.name == 'a' and elem.get('href'):
+                    # Se for link, pode querer o href
+                    if 'href' in selector.lower() or '@href' in selector:
+                        auto_detect_attr = 'href'
+        
+        # Se detectou imagem, extrair src
+        if auto_detect_img and auto_detect_attr and hasattr(elem, 'get'):
+            value = elem.get(auto_detect_attr, '')
+            if value:
+                return value
+        
+        # Se deve extrair HTML completo
+        if extrair_html:
+            if tipo == 'css':
+                return str(elem)
+            elif tipo == 'xpath' and hasattr(elem, 'tag'):
+                return lxml_html.tostring(elem, encoding='unicode')
+        
+        # Extração padrão de texto
+        if tipo == 'css':
+            return elem.get_text(strip=True)
+        elif tipo == 'xpath':
+            if hasattr(elem, 'text_content'):
+                return elem.text_content().strip()
+            else:
+                return str(elem)
+        
+        return str(elem)
+    except:
+        return str(elem)
+
 # 🤖 GERENCIAMENTO DE SCRAPING AUTOMÁTICO
 SCRAPING_TASKS_FILE = "scraping_tasks.json"
 SCRAPING_HISTORY_FILE = "scraping_history.json"
@@ -1246,20 +1308,20 @@ if st.session_state.soup is not None:
                                     if is_xpath:
                                         tree = lxml_html.fromstring(html_content if html_content else response.text)
                                         elements = tree.xpath(selector)
-                                        if elements:
-                                            if isinstance(elements[0], str):
-                                                valores = elements[:5]
-                                            else:
-                                                valores = [elem.text_content().strip() if hasattr(elem, 'text_content') else str(elem) for elem in elements[:5]]
-                                        else:
-                                            valores = []
+                                        is_xpath_attr = isinstance(elements[0], str) if elements else False
+                                        valores = []
+                                        for elem in elements[:5]:
+                                            valor = extract_element_value(elem, selector, tipo='xpath', is_xpath_attr=is_xpath_attr)
+                                            if valor:
+                                                valores.append(valor)
                                     else:
                                         # CSS
                                         elements = soup.select(selector)
-                                        if elements:
-                                            valores = [elem.get_text(strip=True) for elem in elements[:5]]
-                                        else:
-                                            valores = []
+                                        valores = []
+                                        for elem in elements[:5]:
+                                            valor = extract_element_value(elem, selector, tipo='css')
+                                            if valor:
+                                                valores.append(valor)
                                     
                                     # Nome da coluna: Seletor_{número} ou usa o próprio seletor se for curto
                                     col_name = f"Seletor_{selector_idx}" if len(selector) > 30 else selector
@@ -1372,46 +1434,21 @@ if st.session_state.soup is not None:
                                 tree = lxml_html.fromstring(st.session_state.html_content)
                                 elements = tree.xpath(selector)
                                 tipo = "XPath"
-                                if elements:
-                                    if isinstance(elements[0], str):
-                                        # Atributo
-                                        valores = elements
-                                    else:
-                                        # Elementos
-                                        valores = []
-                                        for elem in elements:
-                                            if extract_universal_text and hasattr(elem, 'text_content'):
-                                                valores.append(elem.text_content().strip())
-                                            elif extract_universal_attrs:
-                                                valores.append(lxml_html.tostring(elem, encoding='unicode')[:100] + '...')
-                                            elif not extract_universal_text and not extract_universal_attrs and hasattr(elem, 'text_content'):
-                                                # Se nenhum checkbox marcado, extrair texto por padrão
-                                                valores.append(elem.text_content().strip())
-                                else:
-                                    valores = []
+                                is_xpath_attr = isinstance(elements[0], str) if elements else False
+                                valores = []
+                                for elem in elements:
+                                    valor = extract_element_value(elem, selector, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extract_universal_attrs)
+                                    if valor:
+                                        valores.append(valor)
                             else:
                                 # CSS
                                 elements = st.session_state.soup.select(selector)
                                 tipo = "CSS"
-                                if elements:
-                                    valores = []
-                                    for elem in elements:
-                                        if extract_universal_text:
-                                            text = elem.get_text(strip=True)
-                                            if text:
-                                                valores.append(text)
-                                        if extract_universal_attrs:
-                                            # Extrair atributos comuns
-                                            for attr in ['href', 'src', 'data-src', 'alt', 'title']:
-                                                if elem.get(attr):
-                                                    valores.append(f"{attr}: {elem.get(attr)}")
-                                        # Se nenhum checkbox marcado, extrair texto por padrão
-                                        if not extract_universal_text and not extract_universal_attrs:
-                                            text = elem.get_text(strip=True)
-                                            if text:
-                                                valores.append(text)
-                                else:
-                                    valores = []
+                                valores = []
+                                for elem in elements:
+                                    valor = extract_element_value(elem, selector, tipo='css', extrair_html=extract_universal_attrs)
+                                    if valor:
+                                        valores.append(valor)
                             # Adicionar resultado
                             total_encontrado = len(valores) if isinstance(valores, list) else (1 if valores else 0)
                             primeiro_valor = valores[0] if valores else "Nenhum resultado"
