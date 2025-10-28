@@ -1,0 +1,14 @@
+streamlit
+requests
+beautifulsoup4
+lxml
+pandas
+anthropic
+openai
+google-genai
+flask
+flask-cors
+selenium
+webdriver-manager
+trafilatura
+apscheduler

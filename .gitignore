@@ -1,0 +1,26 @@
+# API Keys e dados sensíveis
+api_keys.json
+authorized_emails.json
+scraping_tasks.json
+scraping_history.json
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+
+# Streamlit cache
+.streamlit/
+
+# Logs
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
