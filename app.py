@@ -30,11 +30,23 @@ except ImportError:
     GEMINI_AVAILABLE = False
 
 # 🔑 GERENCIAMENTO SIMPLIFICADO DE API KEYS
+def get_secret(key_name, default=None):
+    """
+    Obtém secret de forma compatível com Replit e Streamlit Cloud
+    Tenta st.secrets primeiro (Streamlit Cloud), depois os.environ (Replit)
+    """
+    try:
+        # Streamlit Cloud: usa st.secrets
+        return st.secrets.get(key_name, default)
+    except:
+        # Replit: usa variáveis de ambiente
+        return os.environ.get(key_name, default)
+
 def get_api_key(key_name):
     """
-    Obtém API key das variáveis de ambiente (Streamlit Secrets)
+    Obtém API key (wrapper para compatibilidade)
     """
-    return os.getenv(key_name)
+    return get_secret(key_name)
 
 # 🤖 GERENCIAMENTO DE SCRAPING AUTOMÁTICO
 SCRAPING_TASKS_FILE = "scraping_tasks.json"
@@ -427,8 +439,16 @@ st.set_page_config(
 # 🔐 AUTENTICAÇÃO SIMPLES COM LOGIN/SENHA
 def check_login(username, password):
     """Verifica credenciais de login"""
-    admin_username = os.getenv('ADMIN_USERNAME', 'admin')
-    admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
+    admin_username = get_secret('ADMIN_USERNAME', 'admin')
+    admin_password = get_secret('ADMIN_PASSWORD', 'admin123')
+    
+    # DEBUG: mostrar informações (SEM mostrar a senha!)
+    st.write(f"DEBUG - Username digitado: '{username}' (len={len(username)})")
+    st.write(f"DEBUG - Username esperado: '{admin_username}' (len={len(admin_username) if admin_username else 0})")
+    st.write(f"DEBUG - Senha digitada tem {len(password)} caracteres")
+    st.write(f"DEBUG - Senha esperada tem {len(admin_password) if admin_password else 0} caracteres")
+    st.write(f"DEBUG - Match username: {username == admin_username}")
+    st.write(f"DEBUG - Match password: {password == admin_password}")
     
     return username == admin_username and password == admin_password
 
