@@ -442,14 +442,6 @@ def check_login(username, password):
     admin_username = get_secret('ADMIN_USERNAME', 'admin')
     admin_password = get_secret('ADMIN_PASSWORD', 'admin123')
     
-    # DEBUG: mostrar informações (SEM mostrar a senha!)
-    st.write(f"DEBUG - Username digitado: '{username}' (len={len(username)})")
-    st.write(f"DEBUG - Username esperado: '{admin_username}' (len={len(admin_username) if admin_username else 0})")
-    st.write(f"DEBUG - Senha digitada tem {len(password)} caracteres")
-    st.write(f"DEBUG - Senha esperada tem {len(admin_password) if admin_password else 0} caracteres")
-    st.write(f"DEBUG - Match username: {username == admin_username}")
-    st.write(f"DEBUG - Match password: {password == admin_password}")
-    
     return username == admin_username and password == admin_password
 
 # Inicializar session state para autenticação
@@ -1180,9 +1172,24 @@ if st.session_state.soup is not None:
                                 tipo = sel.get('tipo', 'css')
                                 descricao = sel.get('descricao', 'Campo')
                                 try:
+                                    # Detectar se precisa extrair HTML (imagens, descrições completas, etc)
+                                    extrair_html = any(palavra in descricao.lower() for palavra in ['imagem', 'imagens', 'gif', 'gifs', 'completa', 'completo', 'html', 'screenshot', 'media'])
+                                    
                                     if tipo == 'css':
                                         elements = soup.select(seletor)
-                                        valores = [elem.get_text(strip=True) for elem in elements]
+                                        if extrair_html:
+                                            # Para imagens e descrições completas, extrair HTML
+                                            valores = []
+                                            for elem in elements:
+                                                # Se for tag <img>, pegar o src
+                                                if elem.name == 'img':
+                                                    valores.append(elem.get('src', ''))
+                                                else:
+                                                    # Para outros casos, pegar o HTML completo (com imagens)
+                                                    valores.append(str(elem))
+                                        else:
+                                            # Para texto normal
+                                            valores = [elem.get_text(strip=True) for elem in elements]
                                     elif tipo == 'xpath':
                                         tree = lxml_html.fromstring(html_content if html_content else response.text)
                                         elements = tree.xpath(seletor)
@@ -1191,7 +1198,11 @@ if st.session_state.soup is not None:
                                             if isinstance(elem, str):
                                                 valores.append(elem)
                                             elif hasattr(elem, 'text_content'):
-                                                valores.append(elem.text_content().strip())
+                                                if extrair_html:
+                                                    # Para HTML completo
+                                                    valores.append(etree.tostring(elem, encoding='unicode'))
+                                                else:
+                                                    valores.append(elem.text_content().strip())
                                             else:
                                                 valores.append(str(elem))
                                     else:
