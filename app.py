@@ -1376,7 +1376,17 @@ with tab6:
     st.subheader("🤖 Scraping Automático de Lançamentos")
     st.caption("Configure scraping periódico de lançamentos de produtos com notificação por email")
     
-    st.info("💡 **Execução Manual**: Use o botão ▶️ para executar tarefas sob demanda. Para agendamento automático, configure **Replit Scheduled Deployments** no painel de deployment.", icon="ℹ️")
+    # Aviso de funcionalidade futura
+    st.warning(
+        "⚠️ **FUNCIONALIDADE FUTURA** - Esta funcionalidade está em desenvolvimento.\n\n"
+        "**Limitação do Streamlit Community Cloud:** O Streamlit Cloud não possui suporte nativo para tarefas agendadas (cron jobs). "
+        "Para implementar esta funcionalidade completamente, será necessário:\n\n"
+        "1. **Integrar banco de dados externo** (ex: Supabase) para persistir tarefas cadastradas\n"
+        "2. **Configurar execução externa** via GitHub Actions ou serviço de cron (cron-job.org)\n"
+        "3. **Adaptar arquitetura** para separar agendamento da interface\n\n"
+        "Por enquanto, a interface está disponível para visualização e testes, mas o agendamento automático não funcionará até essas mudanças serem implementadas.",
+        icon="⚠️"
+    )
     
     # Verificar se usuário é admin
     if not st.session_state.get('is_admin', False):
