@@ -1291,6 +1291,11 @@ if st.session_state.soup is not None:
                             
                             for selector_idx, selector in enumerate(selectors_list, 1):
                                 try:
+                                    # Detectar automaticamente se precisa extrair HTML (imagens, descrições, etc)
+                                    # Baseado no seletor (img, src, href, etc)
+                                    selector_lower = selector.lower()
+                                    extrair_html = any(palavra in selector_lower for palavra in ['img', 'src', 'screenshot', 'image', 'description', 'game_area_description'])
+                                    
                                     # Detectar se é XPath ou CSS
                                     is_xpath = any([
                                         selector.startswith('//'),
@@ -1306,22 +1311,22 @@ if st.session_state.soup is not None:
                                         elements = tree.xpath(selector)
                                         is_xpath_attr = isinstance(elements[0], str) if elements else False
                                         valores = []
-                                        for elem in elements[:5]:
-                                            valor = extract_element_value(elem, selector, tipo='xpath', is_xpath_attr=is_xpath_attr)
+                                        for elem in elements:  # Remover limite [:5] para pegar todos
+                                            valor = extract_element_value(elem, selector, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
                                             if valor:
                                                 valores.append(valor)
                                     else:
                                         # CSS
                                         elements = soup.select(selector)
                                         valores = []
-                                        for elem in elements[:5]:
-                                            valor = extract_element_value(elem, selector, tipo='css')
+                                        for elem in elements:  # Remover limite [:5] para pegar todos
+                                            valor = extract_element_value(elem, selector, tipo='css', extrair_html=extrair_html)
                                             if valor:
                                                 valores.append(valor)
                                     
                                     # Usar sempre o seletor completo como nome da coluna
                                     # Se for muito longo, o Streamlit trunca automaticamente na exibição
-                                    row[selector] = valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores) + ('...' if len(valores) >= 5 else '')
+                                    row[selector] = valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores[:5]) + ('...' if len(valores) > 5 else '')
                                 except Exception as e:
                                     row[selector] = f"ERRO: {str(e)}"
                             
