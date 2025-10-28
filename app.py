@@ -619,44 +619,52 @@ with st.sidebar:
         st.success("✅ Página carregada e pronta para scraping!")
         st.caption(f"URL: {st.session_state.url}")
 
-# Conteúdo principal
-if st.session_state.soup is None:
-    st.info("👈 Insira uma URL na barra lateral e clique em 'Carregar Página' para começar")
-    
-    st.markdown("### 📖 Como usar:")
-    st.markdown("""
-    1. **Insira a URL** da página que deseja fazer scraping na barra lateral
-    2. **Clique em 'Carregar Página'** para buscar o conteúdo
-    3. **Escolha o método de extração** (Seletor CSS, Tag, Classe, etc.)
-    4. **Visualize os dados** extraídos em tempo real
-    5. **Faça o download** dos dados em CSV ou JSON
-    """)
-    
-    st.markdown("### 💡 Exemplos de uso:")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Extrair títulos:**")
-        st.code("Tag: h1")
-        st.markdown("**Extrair parágrafos:**")
-        st.code("Tag: p")
-    with col2:
-        st.markdown("**Extrair links:**")
-        st.code("Tag: a")
-        st.markdown("**Extrair por classe:**")
-        st.code("Classe: produto-preco")
+# Conteúdo principal - Abas sempre visíveis
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "📖 Início",
+    "📄 Estrutura HTML",
+    "🤖 Extração com IA",
+    "🚀 Scraping em Massa",
+    "⚡ Validador de Seletores",
+    "🤖 Scraping Automático"
+])
 
-else:
-    # Abas principais
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📄 Estrutura HTML",
-        "🤖 Extração com IA",
-        "🚀 Scraping em Massa",
-        "⚡ Validador de Seletores",
-        "🤖 Scraping Automático"
-    ])
+# Tab 1: Início (instruções quando não há página carregada)
+with tab1:
+    if st.session_state.soup is None:
+        st.info("👈 Insira uma URL na barra lateral e clique em 'Carregar Página' para começar")
+        
+        st.markdown("### 📖 Como usar:")
+        st.markdown("""
+        1. **Insira a URL** da página que deseja fazer scraping na barra lateral
+        2. **Clique em 'Carregar Página'** para buscar o conteúdo
+        3. **Escolha o método de extração** (Seletor CSS, Tag, Classe, etc.)
+        4. **Visualize os dados** extraídos em tempo real
+        5. **Faça o download** dos dados em CSV ou JSON
+        """)
+        
+        st.markdown("### 💡 Exemplos de uso:")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("**Extrair títulos:**")
+            st.code("Tag: h1")
+            st.markdown("**Extrair parágrafos:**")
+            st.code("Tag: p")
+        with col2:
+            st.markdown("**Extrair links:**")
+            st.code("Tag: a")
+            st.markdown("**Extrair por classe:**")
+            st.code("Classe: produto-preco")
+    else:
+        st.success("✅ Página carregada e pronta para scraping!")
+        st.caption(f"📍 URL: {st.session_state.url}")
+        st.info("👆 Use as abas acima para extrair dados da página")
+
+# Restante das abas (só funcionam com página carregada)
+if st.session_state.soup is not None:
     
-    # Tab 0: Visualização da Estrutura HTML
-    with tab1:
+    # Tab 2: Visualização da Estrutura HTML
+    with tab2:
         st.subheader("Estrutura HTML da Página")
         st.caption("Visualize a estrutura da página para identificar os elementos que deseja extrair")
         
@@ -722,8 +730,8 @@ else:
         html_preview = st.session_state.soup.prettify()[:5000]
         st.code(html_preview, language="html")
     
-    # Tab 2: Extração com IA (movido de tab8)
-    with tab2:
+    # Tab 3: Extração com IA
+    with tab3:
         st.subheader("🤖 Extração Assistida por IA")
         st.caption("Descreva o que você quer extrair e deixe a IA identificar os seletores corretos para você!")
         
@@ -1042,8 +1050,8 @@ else:
                         else:
                             st.warning("⚠️ Nenhum seletor funcionou. Tente descrever de forma diferente.")
     
-    # Tab 3: Scraping em Massa (movido de tab9)
-    with tab3:
+    # Tab 4: Scraping em Massa
+    with tab4:
         st.subheader("🚀 Scraping em Massa")
         st.caption("Extraia dados de múltiplas URLs de uma vez usando os mesmos seletores")
         # Inicializar checkbox de IA como marcado se houver seletores disponíveis
@@ -1234,8 +1242,8 @@ else:
                 else:
                     st.warning("⚠️ Nenhum dado foi extraído")
     
-    # Tab 4: Validador de Seletores (movido de tab10)
-    with tab4:
+    # Tab 5: Validador de Seletores
+    with tab5:
         st.subheader("⚡ Validador de Seletores")
         st.caption("Cole múltiplos seletores (CSS, XPath, etc) - um por linha - e teste todos de uma vez!")
         st.markdown("**Cole seus seletores aqui (um por linha):**")
@@ -1363,185 +1371,185 @@ else:
             else:
                 st.warning("⚠️ Insira pelo menos um seletor")
     
-    # Tab 5: Scraping Automático
-    with tab5:
-        st.subheader("🤖 Scraping Automático de Lançamentos")
-        st.caption("Configure scraping periódico de lançamentos de produtos com notificação por email")
+# Tab 6: Scraping Automático (funciona sem página carregada)
+with tab6:
+    st.subheader("🤖 Scraping Automático de Lançamentos")
+    st.caption("Configure scraping periódico de lançamentos de produtos com notificação por email")
+    
+    st.info("💡 **Execução Manual**: Use o botão ▶️ para executar tarefas sob demanda. Para agendamento automático, configure **Replit Scheduled Deployments** no painel de deployment.", icon="ℹ️")
+    
+    # Verificar se usuário é admin
+    if not st.session_state.get('is_admin', False):
+        st.warning("⚠️ Esta funcionalidade está disponível apenas para administradores")
+        st.stop()
+    
+    # Duas colunas: Configuração | Tarefas Ativas
+    col1, col2 = st.columns([3, 2])
+    
+    with col1:
+        st.markdown("### ➕ Nova Tarefa de Scraping")
         
-        st.info("💡 **Execução Manual**: Use o botão ▶️ para executar tarefas sob demanda. Para agendamento automático, configure **Replit Scheduled Deployments** no painel de deployment.", icon="ℹ️")
-        
-        # Verificar se usuário é admin
-        if not st.session_state.get('is_admin', False):
-            st.warning("⚠️ Esta funcionalidade está disponível apenas para administradores")
-            st.stop()
-        
-        # Duas colunas: Configuração | Tarefas Ativas
-        col1, col2 = st.columns([3, 2])
-        
-        with col1:
-            st.markdown("### ➕ Nova Tarefa de Scraping")
-            
-            with st.form("new_scraping_task"):
-                st.markdown("**1️⃣ Configuração da Fonte**")
-                task_name = st.text_input("Nome da Tarefa", placeholder="Ex: Lançamentos Steam Semanal")
-                source_url = st.text_input("URL da Página de Lançamentos", placeholder="https://store.steampowered.com/...")
-                
-                st.divider()
-                st.markdown("**2️⃣ Configuração de Busca**")
-                target_site = st.text_input("Site Alvo para Buscar Produtos", placeholder="https://loja.com")
-                search_method = st.selectbox("Método de Busca", ["Híbrido (Python + IA)", "Apenas Python", "Apenas IA"])
-                
-                st.divider()
-                st.markdown("**3️⃣ Campos para Extrair**")
-                fields_to_extract = st.text_area(
-                    "Campos Desejados (um por linha)",
-                    placeholder="Título\nPreço\nDisponibilidade\nLink\nImagem",
-                    height=100
-                )
-                
-                st.divider()
-                st.markdown("**4️⃣ Agendamento**")
-                col_freq1, col_freq2 = st.columns(2)
-                with col_freq1:
-                    frequency = st.selectbox("Frequência", ["Diário", "Semanal", "Mensal", "Personalizado"])
-                with col_freq2:
-                    if frequency == "Personalizado":
-                        custom_schedule = st.text_input("Cron Expression", placeholder="0 10 * * 1")
-                    else:
-                        custom_schedule = ""
-                
-                st.divider()
-                st.markdown("**5️⃣ Notificações por Email**")
-                
-                email_provider = st.selectbox(
-                    "Provedor de Email",
-                    ["SMTP Customizado", "SendGrid", "Resend", "Gmail"],
-                    help="Escolha como enviar os relatórios por email"
-                )
-                
-                recipient_email = st.text_input("Email Destinatário", placeholder="seu@email.com")
-                
-                if email_provider == "SMTP Customizado":
-                    st.caption("Configure seu servidor SMTP:")
-                    smtp_col1, smtp_col2 = st.columns(2)
-                    with smtp_col1:
-                        smtp_server = st.text_input("Servidor SMTP", placeholder="smtp.gmail.com")
-                        smtp_port = st.number_input("Porta", value=587, min_value=1, max_value=65535)
-                    with smtp_col2:
-                        smtp_user = st.text_input("Usuário SMTP")
-                        smtp_pass = st.text_input("Senha SMTP", type="password")
-                else:
-                    smtp_server = smtp_port = smtp_user = smtp_pass = None
-                    st.info(f"💡 Você precisará configurar a integração {email_provider} no Replit")
-                
-                submit_task = st.form_submit_button("✅ Criar Tarefa", use_container_width=True)
-                
-                if submit_task:
-                    if task_name and source_url and target_site and recipient_email:
-                        task_config = {
-                            'name': task_name,
-                            'source_url': source_url,
-                            'target_site': target_site,
-                            'search_method': search_method,
-                            'fields': [f.strip() for f in fields_to_extract.split('\n') if f.strip()],
-                            'frequency': frequency,
-                            'custom_schedule': custom_schedule,
-                            'email_provider': email_provider,
-                            'recipient_email': recipient_email,
-                            'smtp_config': {
-                                'server': smtp_server,
-                                'port': smtp_port,
-                                'user': smtp_user,
-                                'pass': smtp_pass
-                            } if email_provider == "SMTP Customizado" else None
-                        }
-                        
-                        if add_scraping_task(task_config):
-                            st.success(f"✅ Tarefa '{task_name}' criada com sucesso!")
-                            st.rerun()
-                        else:
-                            st.error("❌ Erro ao criar tarefa")
-                    else:
-                        st.warning("⚠️ Preencha todos os campos obrigatórios")
-        
-        with col2:
-            st.markdown("### 📋 Tarefas Configuradas")
-            tasks = load_scraping_tasks()
-            
-            if tasks:
-                for task in tasks:
-                    with st.expander(f"🤖 {task['name']}", expanded=False):
-                        st.text(f"🔗 Fonte: {task['source_url'][:50]}...")
-                        st.text(f"🎯 Alvo: {task['target_site'][:50]}...")
-                        st.text(f"⏰ Frequência: {task['frequency']}")
-                        st.text(f"📧 Email: {task['recipient_email']}")
-                        st.text(f"📊 Campos: {len(task['fields'])} campos")
-                        
-                        if st.button("▶️ Executar Agora", key=f"run_{task['id']}", use_container_width=True):
-                            with st.spinner("⚙️ Executando scraping..."):
-                                result = execute_scraping_task(task)
-                                
-                                if result['success']:
-                                    st.success(f"✅ {result['total']} produto(s) encontrado(s)!")
-                                    
-                                    # Exibir produtos encontrados
-                                    if result.get('products'):
-                                        st.dataframe(pd.DataFrame(result['products']), use_container_width=True)
-                                    
-                                    # Enviar email
-                                    email_result = send_email_notification(task, result)
-                                    if email_result == True:
-                                        st.success("📧 Email enviado com sucesso!")
-                                    elif isinstance(email_result, str):
-                                        st.info(f"📧 {email_result}")
-                                    
-                                    # Salvar no histórico
-                                    history = load_scraping_history()
-                                    history.append({
-                                        'task_id': task['id'],
-                                        'task_name': task['name'],
-                                        'timestamp': pd.Timestamp.now().isoformat(),
-                                        'success': True,
-                                        'products_found': result['total']
-                                    })
-                                    save_scraping_history(history)
-                                else:
-                                    st.error(f"❌ Erro: {result['error']}")
-                                    
-                                    # Salvar erro no histórico
-                                    history = load_scraping_history()
-                                    history.append({
-                                        'task_id': task['id'],
-                                        'task_name': task['name'],
-                                        'timestamp': pd.Timestamp.now().isoformat(),
-                                        'success': False,
-                                        'error': result['error']
-                                    })
-                                    save_scraping_history(history)
-                        
-                        if st.button("🗑️ Excluir", key=f"del_{task['id']}", use_container_width=True):
-                            tasks_updated = [t for t in tasks if t['id'] != task['id']]
-                            if save_scraping_tasks(tasks_updated):
-                                st.success("✅ Tarefa excluída!")
-                                st.rerun()
-            else:
-                st.info("Nenhuma tarefa configurada ainda")
-                st.caption("👈 Configure uma nova tarefa ao lado")
+        with st.form("new_scraping_task"):
+            st.markdown("**1️⃣ Configuração da Fonte**")
+            task_name = st.text_input("Nome da Tarefa", placeholder="Ex: Lançamentos Steam Semanal")
+            source_url = st.text_input("URL da Página de Lançamentos", placeholder="https://store.steampowered.com/...")
             
             st.divider()
-            st.caption(f"📊 Total: {len(tasks)} tarefa(s)")
+            st.markdown("**2️⃣ Configuração de Busca**")
+            target_site = st.text_input("Site Alvo para Buscar Produtos", placeholder="https://loja.com")
+            search_method = st.selectbox("Método de Busca", ["Híbrido (Python + IA)", "Apenas Python", "Apenas IA"])
             
-            if tasks:
-                st.markdown("### 📜 Histórico")
-                history = load_scraping_history()
-                if history:
-                    # Mostrar apenas os últimos 5
-                    recent_history = sorted(history, key=lambda x: x['timestamp'], reverse=True)[:5]
-                    for h in recent_history:
-                        status_icon = "✅" if h['success'] else "❌"
-                        st.caption(f"{status_icon} {h['task_name']} - {pd.Timestamp(h['timestamp']).strftime('%d/%m %H:%M')}")
+            st.divider()
+            st.markdown("**3️⃣ Campos para Extrair**")
+            fields_to_extract = st.text_area(
+                "Campos Desejados (um por linha)",
+                placeholder="Título\nPreço\nDisponibilidade\nLink\nImagem",
+                height=100
+            )
+            
+            st.divider()
+            st.markdown("**4️⃣ Agendamento**")
+            col_freq1, col_freq2 = st.columns(2)
+            with col_freq1:
+                frequency = st.selectbox("Frequência", ["Diário", "Semanal", "Mensal", "Personalizado"])
+            with col_freq2:
+                if frequency == "Personalizado":
+                    custom_schedule = st.text_input("Cron Expression", placeholder="0 10 * * 1")
                 else:
-                    st.caption("Nenhuma execução ainda")
+                    custom_schedule = ""
+            
+            st.divider()
+            st.markdown("**5️⃣ Notificações por Email**")
+            
+            email_provider = st.selectbox(
+                "Provedor de Email",
+                ["SMTP Customizado", "SendGrid", "Resend", "Gmail"],
+                help="Escolha como enviar os relatórios por email"
+            )
+            
+            recipient_email = st.text_input("Email Destinatário", placeholder="seu@email.com")
+            
+            if email_provider == "SMTP Customizado":
+                st.caption("Configure seu servidor SMTP:")
+                smtp_col1, smtp_col2 = st.columns(2)
+                with smtp_col1:
+                    smtp_server = st.text_input("Servidor SMTP", placeholder="smtp.gmail.com")
+                    smtp_port = st.number_input("Porta", value=587, min_value=1, max_value=65535)
+                with smtp_col2:
+                    smtp_user = st.text_input("Usuário SMTP")
+                    smtp_pass = st.text_input("Senha SMTP", type="password")
+            else:
+                smtp_server = smtp_port = smtp_user = smtp_pass = None
+                st.info(f"💡 Você precisará configurar a integração {email_provider} no Replit")
+            
+            submit_task = st.form_submit_button("✅ Criar Tarefa", use_container_width=True)
+            
+            if submit_task:
+                if task_name and source_url and target_site and recipient_email:
+                    task_config = {
+                        'name': task_name,
+                        'source_url': source_url,
+                        'target_site': target_site,
+                        'search_method': search_method,
+                        'fields': [f.strip() for f in fields_to_extract.split('\n') if f.strip()],
+                        'frequency': frequency,
+                        'custom_schedule': custom_schedule,
+                        'email_provider': email_provider,
+                        'recipient_email': recipient_email,
+                        'smtp_config': {
+                            'server': smtp_server,
+                            'port': smtp_port,
+                            'user': smtp_user,
+                            'pass': smtp_pass
+                        } if email_provider == "SMTP Customizado" else None
+                    }
+                    
+                    if add_scraping_task(task_config):
+                        st.success(f"✅ Tarefa '{task_name}' criada com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Erro ao criar tarefa")
+                else:
+                    st.warning("⚠️ Preencha todos os campos obrigatórios")
+    
+    with col2:
+        st.markdown("### 📋 Tarefas Configuradas")
+        tasks = load_scraping_tasks()
+        
+        if tasks:
+            for task in tasks:
+                with st.expander(f"🤖 {task['name']}", expanded=False):
+                    st.text(f"🔗 Fonte: {task['source_url'][:50]}...")
+                    st.text(f"🎯 Alvo: {task['target_site'][:50]}...")
+                    st.text(f"⏰ Frequência: {task['frequency']}")
+                    st.text(f"📧 Email: {task['recipient_email']}")
+                    st.text(f"📊 Campos: {len(task['fields'])} campos")
+                    
+                    if st.button("▶️ Executar Agora", key=f"run_{task['id']}", use_container_width=True):
+                        with st.spinner("⚙️ Executando scraping..."):
+                            result = execute_scraping_task(task)
+                            
+                            if result['success']:
+                                st.success(f"✅ {result['total']} produto(s) encontrado(s)!")
+                                
+                                # Exibir produtos encontrados
+                                if result.get('products'):
+                                    st.dataframe(pd.DataFrame(result['products']), use_container_width=True)
+                                
+                                # Enviar email
+                                email_result = send_email_notification(task, result)
+                                if email_result == True:
+                                    st.success("📧 Email enviado com sucesso!")
+                                elif isinstance(email_result, str):
+                                    st.info(f"📧 {email_result}")
+                                
+                                # Salvar no histórico
+                                history = load_scraping_history()
+                                history.append({
+                                    'task_id': task['id'],
+                                    'task_name': task['name'],
+                                    'timestamp': pd.Timestamp.now().isoformat(),
+                                    'success': True,
+                                    'products_found': result['total']
+                                })
+                                save_scraping_history(history)
+                            else:
+                                st.error(f"❌ Erro: {result['error']}")
+                                
+                                # Salvar erro no histórico
+                                history = load_scraping_history()
+                                history.append({
+                                    'task_id': task['id'],
+                                    'task_name': task['name'],
+                                    'timestamp': pd.Timestamp.now().isoformat(),
+                                    'success': False,
+                                    'error': result['error']
+                                })
+                                save_scraping_history(history)
+                    
+                    if st.button("🗑️ Excluir", key=f"del_{task['id']}", use_container_width=True):
+                        tasks_updated = [t for t in tasks if t['id'] != task['id']]
+                        if save_scraping_tasks(tasks_updated):
+                            st.success("✅ Tarefa excluída!")
+                            st.rerun()
+        else:
+            st.info("Nenhuma tarefa configurada ainda")
+            st.caption("👈 Configure uma nova tarefa ao lado")
+        
+        st.divider()
+        st.caption(f"📊 Total: {len(tasks)} tarefa(s)")
+        
+        if tasks:
+            st.markdown("### 📜 Histórico")
+            history = load_scraping_history()
+            if history:
+                # Mostrar apenas os últimos 5
+                recent_history = sorted(history, key=lambda x: x['timestamp'], reverse=True)[:5]
+                for h in recent_history:
+                    status_icon = "✅" if h['success'] else "❌"
+                    st.caption(f"{status_icon} {h['task_name']} - {pd.Timestamp(h['timestamp']).strftime('%d/%m %H:%M')}")
+            else:
+                st.caption("Nenhuma execução ainda")
 
 st.divider()
 st.caption("💡 Dica: Você pode inspecionar o código HTML da página usando as ferramentas de desenvolvedor do seu navegador (F12) para encontrar os seletores corretos.")
