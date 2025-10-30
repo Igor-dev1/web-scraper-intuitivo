@@ -1479,6 +1479,96 @@ if st.session_state.soup is not None:
                                     st.rerun()
                     else:
                         st.warning("⚠️ Selecione pelo menos uma URL para processar")
+                
+                # ========== EXIBIR RESULTADOS DO PROCESSAMENTO ==========
+                if st.session_state.get('multi_url_results'):
+                    st.divider()
+                    st.success(f"✅ {len(st.session_state.multi_url_results)} URL(s) processada(s)!")
+                    
+                    # Exibir resultados organizados por URL
+                    st.markdown("### 📊 Resultados do Processamento")
+                    
+                    for idx, url_result in enumerate(st.session_state.multi_url_results, 1):
+                        with st.expander(f"📄 URL {idx}: {url_result['url'][:80]}...", expanded=(idx == 1)):
+                            if url_result.get('error'):
+                                st.error(f"❌ Erro ao processar: {url_result['error']}")
+                            elif url_result.get('data_preview'):
+                                # Mostrar explicação da IA se disponível (modo individual)
+                                if url_result.get('ai_explanation'):
+                                    st.info(f"🤖 **IA:** {url_result['ai_explanation']}")
+                                
+                                # Exibir preview dos dados
+                                df_preview = pd.DataFrame(url_result['data_preview'])
+                                st.dataframe(df_preview, use_container_width=True)
+                                
+                                # Download com dados COMPLETOS
+                                if url_result.get('data_full'):
+                                    df_full = pd.DataFrame(url_result['data_full'])
+                                    
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        csv = df_full.to_csv(index=False).encode('utf-8')
+                                        st.download_button(
+                                            "📥 Download CSV (Completo)",
+                                            csv,
+                                            f"dados_url_{idx}.csv",
+                                            "text/csv",
+                                            key=f'multi_new_csv_{idx}'
+                                        )
+                                    with col2:
+                                        json_str = df_full.to_json(orient='records', force_ascii=False, indent=2)
+                                        st.download_button(
+                                            "📥 Download JSON (Completo)",
+                                            json_str,
+                                            f"dados_url_{idx}.json",
+                                            "application/json",
+                                            key=f'multi_new_json_{idx}'
+                                        )
+                            else:
+                                st.warning("⚠️ Nenhum dado extraído desta URL")
+                    
+                    # Download combinado de todas as URLs
+                    st.markdown("---")
+                    st.markdown("### 📦 Download Combinado")
+                    
+                    all_combined_data = []
+                    for url_result in st.session_state.multi_url_results:
+                        if url_result.get('data_full') and not url_result.get('error'):
+                            for item in url_result['data_full']:
+                                row = {'URL': url_result['url']}
+                                row.update(item)
+                                all_combined_data.append(row)
+                    
+                    if all_combined_data:
+                        df_combined = pd.DataFrame(all_combined_data)
+                        st.info(f"📊 Total de registros: {len(all_combined_data)}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            csv_combined = df_combined.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                "📥 Download CSV (Todas as URLs)",
+                                csv_combined,
+                                "dados_todas_urls.csv",
+                                "text/csv",
+                                key='multi_new_all_csv',
+                                use_container_width=True
+                            )
+                        with col2:
+                            json_combined = df_combined.to_json(orient='records', force_ascii=False, indent=2)
+                            st.download_button(
+                                "📥 Download JSON (Todas as URLs)",
+                                json_combined,
+                                "dados_todas_urls.json",
+                                "application/json",
+                                key='multi_new_all_json',
+                                use_container_width=True
+                            )
+                    
+                    # Botão para limpar resultados e processar novamente
+                    if st.button("🔄 Processar Novamente", use_container_width=True):
+                        st.session_state.multi_url_results = None
+                        st.rerun()
             
             # Botões para processar a página atual
             if not (multi_url_mode and st.session_state.get('loaded_urls', [])):
