@@ -124,16 +124,45 @@ def fetch_html(url, extraction_method='python', timeout=10):
     """
     try:
         if extraction_method == 'proxy':
-            # Usar proxy server local - URL-encode para preservar query parameters
-            encoded_url = quote_plus(url)
-            proxy_url = f'http://localhost:5001/proxy?url={encoded_url}'
-            response = requests.get(proxy_url, timeout=timeout)
+            # Usar corsproxy.io DIRETAMENTE (funciona em Replit e Streamlit Cloud)
+            proxy_url = f'https://corsproxy.io/?{url}'
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+            }
+            
+            # Se for Steam, adicionar cookies de age gate
+            cookies = {}
+            if 'steampowered.com' in url:
+                cookies = {
+                    'wants_mature_content': '1',
+                    'birthtime': '631152000',
+                    'lastagecheckage': '1-0-1990',
+                    'mature_content': '1'
+                }
+            
+            response = requests.get(proxy_url, headers=headers, cookies=cookies, timeout=timeout)
             response.raise_for_status()
             html_content = response.text
         else:
             # Usar Python direto
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            response = requests.get(url, headers=headers, timeout=timeout)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+            }
+            
+            # Se for Steam, adicionar cookies de age gate mesmo no modo Python
+            cookies = {}
+            if 'steampowered.com' in url:
+                cookies = {
+                    'wants_mature_content': '1',
+                    'birthtime': '631152000',
+                    'lastagecheckage': '1-0-1990',
+                    'mature_content': '1'
+                }
+            
+            response = requests.get(url, headers=headers, cookies=cookies, timeout=timeout)
             response.raise_for_status()
             html_content = response.text
         

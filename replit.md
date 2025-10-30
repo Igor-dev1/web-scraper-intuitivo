@@ -48,8 +48,12 @@ This project is a Streamlit-based web scraping application designed to provide a
   - **Problema Resolvido**: Multi-URL ignorava seleção "Proxy CORS" e usava sempre Python direto
   - **Solução**: `loading_method` da sidebar agora salvo em `st.session_state.extraction_method`
   - **Resultado**: Age gates (Steam, etc.) contornados automaticamente em Multi-URL
-  - **Cookies de Age Gate**: Adicionados no `proxy_server.py` para Steam
+  - **Cookies de Age Gate**: Adicionados diretamente em `fetch_html()` para Steam
     - `wants_mature_content`, `birthtime`, `lastagecheckage`, `mature_content`
+  - **Proxy CORS**: Chama corsproxy.io DIRETAMENTE (sem servidor local)
+    - Funciona em **Replit** e **Streamlit Cloud**
+    - Não depende mais do `proxy_server.py` rodando
+    - Compatível com deploy em qualquer plataforma
 
 - ✅ **Explicação da IA Restaurada no Multi-URL**: Mensagens em azul voltaram
   - **Campos `ai_explanation`** adicionados nos resultados Multi-URL:
