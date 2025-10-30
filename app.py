@@ -1374,147 +1374,15 @@ if st.session_state.soup is not None:
                 key="ai_query"
             )
             
-            # ========== SEÇÃO 2: PROCESSAR COM IA ==========
-            if multi_url_mode and st.session_state.get('loaded_urls', []):
+            # ========== EXIBIR RESULTADOS DO PROCESSAMENTO MULTI-URL ==========
+            if multi_url_mode and st.session_state.get('multi_url_results'):
                 st.divider()
-                with st.expander("**ETAPA 2: Processar com IA**", expanded=True):
-                    selected_indices = st.session_state.get('selected_url_indices', [])
-                    if selected_indices:
-                        st.markdown(f"**URLs selecionadas:** {len(selected_indices)}")
-                        
-                        multi_url_strategy = st.radio(
-                            "Estratégia de processamento:",
-                            options=["same_selectors", "individual_ai"],
-                            format_func=lambda x: {
-                                "same_selectors": "⚡ Mesmos seletores (rápido) - IA analisa página atual e aplica em todas",
-                                "individual_ai": "🎯 Seletores individuais (preciso) - IA analisa cada URL separadamente"
-                            }[x],
-                            key="multi_url_strategy_radio2"
-                        )
-                        
-                        if st.button("🤖 Processar URLs Selecionadas com IA", type="primary", use_container_width=True, key="process_selected_urls"):
-                            if not api_key:
-                                st.warning("⚠️ Por favor, forneça uma API Key")
-                            elif not user_query:
-                                st.warning("⚠️ Por favor, descreva o que você quer extrair")
-                            else:
-                                # Processar URLs selecionadas
-                                extraction_method = st.session_state.get('extraction_method', 'python')
-                                
-                                # Primeiro, obter seletores da página atual
-                                with st.spinner(f"Consultando {ai_provider} para página atual..."):
-                                    ai_result = extract_with_ai(
-                                        st.session_state.html_content,
-                                        user_query,
-                                        ai_provider,
-                                        api_key
-                                    )
-                                
-                                if "error" in ai_result:
-                                    st.error(f"❌ Erro na IA: {ai_result['error']}")
-                                else:
-                                    progress_bar = st.progress(0)
-                                    status_text = st.empty()
-                                    
-                                    results = []
-                                    selected_urls = [st.session_state.loaded_urls[i] for i in selected_indices]
-                                    total = len(selected_urls)
-                                    
-                                    for idx, loaded_url in enumerate(selected_urls):
-                                        if loaded_url['status'] == 'error':
-                                            results.append({
-                                                'url': loaded_url['url'],
-                                                'data_preview': None,
-                                                'data_full': None,
-                                                'error': loaded_url['error']
-                                            })
-                                            continue
-                                        
-                                        status_text.text(f"Processando {idx + 1}/{total}: {loaded_url['url'][:50]}...")
-                                        
-                                        if multi_url_strategy == 'individual_ai':
-                                            # IA analisa cada URL
-                                            url_result = apply_ai_per_url(
-                                                loaded_url['url'],
-                                                user_query,
-                                                ai_provider,
-                                                api_key,
-                                                timeout=10,
-                                                extraction_method=extraction_method
-                                            )
-                                        else:
-                                            # Aplica mesmos seletores
-                                            # Já temos o HTML, então vou processar direto
-                                            html_content = loaded_url['html_content']
-                                            soup = BeautifulSoup(html_content, 'lxml')
-                                            
-                                            data_preview = []
-                                            all_valores = {}
-                                            
-                                            for sel in ai_result.get('seletores', []):
-                                                seletor = sel.get('seletor', '')
-                                                tipo = sel.get('tipo', 'css')
-                                                descricao = sel.get('descricao', 'Campo')
-                                                
-                                                try:
-                                                    extrair_html = any(palavra in descricao.lower() for palavra in ['imagem', 'imagens', 'gif', 'gifs', 'completa', 'completo', 'html', 'screenshot', 'media'])
-                                                    
-                                                    if tipo == 'css':
-                                                        elements = soup.select(seletor)
-                                                        valores = [extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html) for elem in elements if extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html)]
-                                                    elif tipo == 'xpath':
-                                                        tree = lxml_html.fromstring(html_content)
-                                                        elements = tree.xpath(seletor)
-                                                        is_xpath_attr = isinstance(elements[0], str) if elements else False
-                                                        valores = [extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html) for elem in elements if extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)]
-                                                    else:
-                                                        valores = []
-                                                    
-                                                    all_valores[descricao] = valores
-                                                    
-                                                    if valores:
-                                                        data_preview.append({
-                                                            'Campo': descricao,
-                                                            'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v)[:100] for v in valores[:3]) + ('...' if len(valores) > 3 else ''),
-                                                            'Total Encontrado': len(valores)
-                                                        })
-                                                    else:
-                                                        data_preview.append({'Campo': descricao, 'Valor': 'Nenhum resultado', 'Total Encontrado': 0})
-                                                except Exception as e:
-                                                    all_valores[descricao] = []
-                                                    data_preview.append({'Campo': descricao, 'Valor': f'Erro: {str(e)}', 'Total Encontrado': 0})
-                                            
-                                            # Estruturar data_full
-                                            data_full = []
-                                            if all_valores:
-                                                max_len = max(len(v) for v in all_valores.values())
-                                                for i in range(max_len):
-                                                    row = {desc: vals[i] if i < len(vals) else '' for desc, vals in all_valores.items()}
-                                                    data_full.append(row)
-                                            
-                                            url_result = {'url': loaded_url['url'], 'data_preview': data_preview, 'data_full': data_full, 'error': None}
-                                        
-                                        results.append(url_result)
-                                        progress_bar.progress((idx + 1) / total)
-                                    
-                                    st.session_state.multi_url_results = results
-                                    st.session_state.ai_result_multiurl = ai_result  # Salvar resultado da IA
-                                    progress_bar.empty()
-                                    status_text.empty()
-                                    st.success(f"✅ {len(results)} URL(s) processada(s)!")
-                                    st.rerun()
-                    else:
-                        st.warning("⚠️ Selecione pelo menos uma URL para processar")
+                st.success(f"✅ {len(st.session_state.multi_url_results)} URL(s) processada(s)!")
                 
-                # ========== EXIBIR RESULTADOS DO PROCESSAMENTO ==========
-                if st.session_state.get('multi_url_results'):
-                    st.divider()
-                    st.success(f"✅ {len(st.session_state.multi_url_results)} URL(s) processada(s)!")
-                    
-                    # Exibir resultados organizados por URL
-                    st.markdown("### 📊 Resultados do Processamento")
-                    
-                    for idx, url_result in enumerate(st.session_state.multi_url_results, 1):
+                # Exibir resultados organizados por URL
+                st.markdown("### 📊 Resultados do Processamento")
+                
+                for idx, url_result in enumerate(st.session_state.multi_url_results, 1):
                         with st.expander(f"📄 URL {idx}: {url_result['url'][:80]}...", expanded=(idx == 1)):
                             if url_result.get('error'):
                                 st.error(f"❌ Erro ao processar: {url_result['error']}")
@@ -1596,48 +1464,55 @@ if st.session_state.soup is not None:
                         st.session_state.multi_url_results = None
                         st.rerun()
             
-            # Botões para escolher método de extração
+            # Escolha do método de extração
             st.divider()
-            if multi_url_mode and st.session_state.get('loaded_urls', []):
-                st.markdown("### 🤖 Escolha o Método de Extração")
-                st.caption("Escolha como a IA vai processar as URLs carregadas:")
+            st.markdown("### 🤖 Método de Extração")
             
-            col1, col2, col3 = st.columns([2, 2, 1])
+            extraction_mode = st.radio(
+                "Escolha como a IA vai processar:",
+                options=["identify_selectors", "extract_direct"],
+                format_func=lambda x: {
+                    "identify_selectors": "🔍 Identificar Seletores - Gera seletores CSS/XPath reutilizáveis",
+                    "extract_direct": "⚡ Extrair Dados Direto - Extração rápida sem seletores"
+                }[x],
+                key="extraction_mode_radio",
+                horizontal=False
+            )
+            
+            # Botão único de processamento
+            col1, col2 = st.columns([4, 1])
             with col1:
-                if st.button("🤖 Identificar Seletores", type="primary", key="ai_extract_button", use_container_width=True, help="Identifica seletores CSS/XPath reutilizáveis"):
+                if st.button("🚀 Processar com IA", type="primary", use_container_width=True, key="process_ai_button"):
                     if not api_key:
                         st.warning("⚠️ Por favor, forneça uma API Key")
                     elif not user_query:
                         st.warning("⚠️ Por favor, descreva o que você quer extrair")
                     else:
-                        with st.spinner(f"Consultando {ai_provider}..."):
-                            result = extract_with_ai(
-                                st.session_state.html_content,
-                                user_query,
-                                ai_provider,
-                                api_key
-                            )
-                            st.session_state.ai_result = result
-                            st.session_state.ai_direct_result = None  # Limpar resultado direto
+                        # Limpar resultados anteriores
+                        st.session_state.ai_result = None
+                        st.session_state.ai_direct_result = None
+                        
+                        # Processar baseado no modo escolhido
+                        if extraction_mode == "identify_selectors":
+                            with st.spinner(f"Identificando seletores com {ai_provider}..."):
+                                result = extract_with_ai(
+                                    st.session_state.html_content,
+                                    user_query,
+                                    ai_provider,
+                                    api_key
+                                )
+                                st.session_state.ai_result = result
+                        else:  # extract_direct
+                            with st.spinner(f"Extraindo dados com {ai_provider}..."):
+                                result = extract_data_directly_with_ai(
+                                    st.session_state.html_content,
+                                    user_query,
+                                    ai_provider,
+                                    api_key
+                                )
+                                st.session_state.ai_direct_result = result
             
             with col2:
-                if st.button("⚡ Extrair Dados Direto", type="secondary", key="ai_direct_extract_button", use_container_width=True, help="Extrai dados diretamente (mais rápido, sem seletores)"):
-                    if not api_key:
-                        st.warning("⚠️ Por favor, forneça uma API Key")
-                    elif not user_query:
-                        st.warning("⚠️ Por favor, descreva o que você quer extrair")
-                    else:
-                        with st.spinner(f"Extraindo dados com {ai_provider}..."):
-                            result = extract_data_directly_with_ai(
-                                st.session_state.html_content,
-                                user_query,
-                                ai_provider,
-                                api_key
-                            )
-                            st.session_state.ai_direct_result = result
-                            st.session_state.ai_result = None  # Limpar resultado de seletores
-            
-            with col3:
                 if st.button("🗑️ Limpar", key="clear_ai_results", use_container_width=True):
                     st.session_state.ai_result = None
                     st.session_state.ai_direct_result = None
