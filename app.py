@@ -1596,50 +1596,52 @@ if st.session_state.soup is not None:
                         st.session_state.multi_url_results = None
                         st.rerun()
             
-            # Botões para processar a página atual
-            if not (multi_url_mode and st.session_state.get('loaded_urls', [])):
-                if multi_url_mode:
-                    st.info("💡 **Dica:** Os botões abaixo processam apenas a página atual carregada. Use a seção Multi-URL acima para processar múltiplas URLs.")
-                col1, col2, col3 = st.columns([2, 2, 1])
-                with col1:
-                    if st.button("🤖 Identificar Seletores", type="primary", key="ai_extract_button", use_container_width=True, help="Identifica seletores CSS/XPath reutilizáveis"):
-                        if not api_key:
-                            st.warning("⚠️ Por favor, forneça uma API Key")
-                        elif not user_query:
-                            st.warning("⚠️ Por favor, descreva o que você quer extrair")
-                        else:
-                            with st.spinner(f"Consultando {ai_provider}..."):
-                                result = extract_with_ai(
-                                    st.session_state.html_content,
-                                    user_query,
-                                    ai_provider,
-                                    api_key
-                                )
-                                st.session_state.ai_result = result
-                                st.session_state.ai_direct_result = None  # Limpar resultado direto
-                
-                with col2:
-                    if st.button("⚡ Extrair Dados Direto", type="secondary", key="ai_direct_extract_button", use_container_width=True, help="Extrai dados diretamente (mais rápido, sem seletores)"):
-                        if not api_key:
-                            st.warning("⚠️ Por favor, forneça uma API Key")
-                        elif not user_query:
-                            st.warning("⚠️ Por favor, descreva o que você quer extrair")
-                        else:
-                            with st.spinner(f"Extraindo dados com {ai_provider}..."):
-                                result = extract_data_directly_with_ai(
-                                    st.session_state.html_content,
-                                    user_query,
-                                    ai_provider,
-                                    api_key
-                                )
-                                st.session_state.ai_direct_result = result
-                                st.session_state.ai_result = None  # Limpar resultado de seletores
-                
-                with col3:
-                    if st.button("🗑️ Limpar", key="clear_ai_results", use_container_width=True):
-                        st.session_state.ai_result = None
-                        st.session_state.ai_direct_result = None
-                        st.rerun()
+            # Botões para escolher método de extração
+            st.divider()
+            if multi_url_mode and st.session_state.get('loaded_urls', []):
+                st.markdown("### 🤖 Escolha o Método de Extração")
+                st.caption("Escolha como a IA vai processar as URLs carregadas:")
+            
+            col1, col2, col3 = st.columns([2, 2, 1])
+            with col1:
+                if st.button("🤖 Identificar Seletores", type="primary", key="ai_extract_button", use_container_width=True, help="Identifica seletores CSS/XPath reutilizáveis"):
+                    if not api_key:
+                        st.warning("⚠️ Por favor, forneça uma API Key")
+                    elif not user_query:
+                        st.warning("⚠️ Por favor, descreva o que você quer extrair")
+                    else:
+                        with st.spinner(f"Consultando {ai_provider}..."):
+                            result = extract_with_ai(
+                                st.session_state.html_content,
+                                user_query,
+                                ai_provider,
+                                api_key
+                            )
+                            st.session_state.ai_result = result
+                            st.session_state.ai_direct_result = None  # Limpar resultado direto
+            
+            with col2:
+                if st.button("⚡ Extrair Dados Direto", type="secondary", key="ai_direct_extract_button", use_container_width=True, help="Extrai dados diretamente (mais rápido, sem seletores)"):
+                    if not api_key:
+                        st.warning("⚠️ Por favor, forneça uma API Key")
+                    elif not user_query:
+                        st.warning("⚠️ Por favor, descreva o que você quer extrair")
+                    else:
+                        with st.spinner(f"Extraindo dados com {ai_provider}..."):
+                            result = extract_data_directly_with_ai(
+                                st.session_state.html_content,
+                                user_query,
+                                ai_provider,
+                                api_key
+                            )
+                            st.session_state.ai_direct_result = result
+                            st.session_state.ai_result = None  # Limpar resultado de seletores
+            
+            with col3:
+                if st.button("🗑️ Limpar", key="clear_ai_results", use_container_width=True):
+                    st.session_state.ai_result = None
+                    st.session_state.ai_direct_result = None
+                    st.rerun()
             
             if st.session_state.ai_result is not None:
                 result = st.session_state.ai_result
