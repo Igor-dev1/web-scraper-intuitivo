@@ -7,6 +7,7 @@ import os
 from io import StringIO
 from lxml import html as lxml_html
 from lxml import etree
+from urllib.parse import quote_plus
 
 # Requests-HTML removido - não funciona com Streamlit threading
 
@@ -62,8 +63,9 @@ def fetch_html(url, extraction_method='python', timeout=10):
     """
     try:
         if extraction_method == 'proxy':
-            # Usar proxy server local
-            proxy_url = f'http://localhost:5001/proxy?url={url}'
+            # Usar proxy server local - URL-encode para preservar query parameters
+            encoded_url = quote_plus(url)
+            proxy_url = f'http://localhost:5001/proxy?url={encoded_url}'
             response = requests.get(proxy_url, timeout=timeout)
             response.raise_for_status()
             html_content = response.text
