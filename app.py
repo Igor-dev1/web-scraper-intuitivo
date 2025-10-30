@@ -965,15 +965,32 @@ if st.session_state.soup is not None:
             
             # Opção de múltiplas URLs
             multi_url_mode = st.checkbox(
-                "🌐 Modo Multi-URL: Aplicar seletores identificados pela IA em várias URLs",
-                help="Ative para usar a IA para identificar seletores na página atual e aplicar em múltiplas URLs de uma vez",
+                "🌐 Modo Multi-URL: Processar várias URLs de uma vez",
+                help="Ative para processar múltiplas URLs com IA",
                 key="multi_url_ai_mode"
             )
             
             additional_urls = []
+            multi_url_strategy = "same_selectors"
             if multi_url_mode:
+                st.markdown("**Estratégia de Processamento:**")
+                multi_url_strategy = st.radio(
+                    "Como processar as URLs?",
+                    options=["same_selectors", "individual_ai"],
+                    format_func=lambda x: {
+                        "same_selectors": "⚡ Mesmos seletores (rápido e econômico) - IA identifica uma vez e aplica em todas",
+                        "individual_ai": "🎯 Seletores individuais (preciso) - IA analisa cada URL separadamente"
+                    }[x],
+                    key="multi_url_strategy",
+                    help="Escolha 'Mesmos seletores' para páginas com estrutura similar, ou 'Seletores individuais' para páginas diferentes"
+                )
+                
                 st.markdown("**URLs Adicionais (uma por linha):**")
-                st.caption("💡 A IA usará a página já carregada para identificar os seletores e aplicará em todas as URLs abaixo")
+                if multi_url_strategy == "same_selectors":
+                    st.caption("💡 A IA identificará seletores na página atual e aplicará nas URLs abaixo")
+                else:
+                    st.caption("💡 A IA analisará cada URL individualmente e identificará seletores específicos")
+                
                 urls_text = st.text_area(
                     "URLs",
                     placeholder="https://exemplo.com/pagina1\nhttps://exemplo.com/pagina2\nhttps://exemplo.com/pagina3",
@@ -1013,10 +1030,12 @@ if st.session_state.soup is not None:
                             if multi_url_mode and additional_urls:
                                 st.session_state.multi_url_mode = True
                                 st.session_state.additional_urls = additional_urls
+                                st.session_state.multi_url_strategy = multi_url_strategy
                                 st.session_state.multi_url_results = []  # Reset resultados
                             else:
                                 st.session_state.multi_url_mode = False
                                 st.session_state.additional_urls = []
+                                st.session_state.multi_url_strategy = "same_selectors"
                                 st.session_state.multi_url_results = []
             
             with col_clear:
