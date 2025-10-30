@@ -61,7 +61,7 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         dict: {
             'url': url,
             'data_preview': lista com preview dos dados (para exibição),
-            'data_full': lista com TODOS os valores (para download),
+            'data_full': lista com TODOS os valores estruturados por linha (para download),
             'error': None
         }
     """
@@ -74,7 +74,7 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         html_content = response.text
         
         data_preview = []
-        data_full = []
+        all_valores = {}  # {descricao: [valores]}
         
         for sel in seletores:
             seletor = sel.get('seletor', '')
@@ -103,20 +103,16 @@ def apply_selectors_to_url(url, seletores, timeout=10):
                 else:
                     valores = []
                 
+                # Armazenar valores para estruturação posterior
+                all_valores[descricao] = valores
+                
+                # Preview: resumo para exibição na tela
                 if valores:
-                    # Preview: resumo para exibição na tela
                     data_preview.append({
                         'Campo': descricao,
                         'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v)[:100] for v in valores[:3]) + ('...' if len(valores) > 3 else ''),
                         'Total Encontrado': len(valores)
                     })
-                    
-                    # Full: TODOS os valores para download
-                    # Criar uma linha para cada valor encontrado
-                    for valor in valores:
-                        data_full.append({
-                            descricao: valor
-                        })
                 else:
                     data_preview.append({
                         'Campo': descricao,
@@ -124,11 +120,23 @@ def apply_selectors_to_url(url, seletores, timeout=10):
                         'Total Encontrado': 0
                     })
             except Exception as e:
+                all_valores[descricao] = []
                 data_preview.append({
                     'Campo': descricao,
                     'Valor': f'Erro: {str(e)}',
                     'Total Encontrado': 0
                 })
+        
+        # Estruturar data_full: criar linhas com todos os campos
+        # Cada linha representa um conjunto de valores alinhados por índice
+        data_full = []
+        if all_valores:
+            max_len = max(len(v) for v in all_valores.values())
+            for i in range(max_len):
+                row = {}
+                for descricao, valores in all_valores.items():
+                    row[descricao] = valores[i] if i < len(valores) else ''
+                data_full.append(row)
         
         return {'url': url, 'data_preview': data_preview, 'data_full': data_full, 'error': None}
     except Exception as e:
