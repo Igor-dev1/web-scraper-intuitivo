@@ -869,6 +869,27 @@ if st.session_state.soup is not None:
             
             st.divider()
             
+            # Opção de múltiplas URLs
+            multi_url_mode = st.checkbox(
+                "🌐 Modo Multi-URL: Aplicar seletores identificados pela IA em várias URLs",
+                help="Ative para usar a IA para identificar seletores na página atual e aplicar em múltiplas URLs de uma vez",
+                key="multi_url_ai_mode"
+            )
+            
+            additional_urls = []
+            if multi_url_mode:
+                st.markdown("**URLs Adicionais (uma por linha):**")
+                st.caption("💡 A IA usará a página já carregada para identificar os seletores e aplicará em todas as URLs abaixo")
+                urls_text = st.text_area(
+                    "URLs",
+                    placeholder="https://exemplo.com/pagina1\nhttps://exemplo.com/pagina2\nhttps://exemplo.com/pagina3",
+                    height=120,
+                    key="ai_multi_urls"
+                )
+                if urls_text:
+                    additional_urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
+                    st.info(f"📊 Total de URLs para processar: {len(additional_urls) + 1} (página atual + {len(additional_urls)} adicionais)")
+            
             st.markdown("**Descreva o que você quer extrair:**")
             user_query = st.text_area(
                 "Descrição",
