@@ -48,6 +48,71 @@ def get_api_key(key_name):
     """
     return get_secret(key_name)
 
+def apply_selectors_to_url(url, seletores, timeout=10):
+    """
+    Aplica seletores identificados pela IA em uma URL específica
+    
+    Args:
+        url: URL para fazer scraping
+        seletores: Lista de seletores identificados pela IA
+        timeout: Timeout para requisição
+    
+    Returns:
+        dict: {'url': url, 'data': lista_de_dados, 'error': None} ou {'url': url, 'data': None, 'error': mensagem}
+    """
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        response = requests.get(url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, 'lxml')
+        html_content = response.text
+        
+        all_data = []
+        for sel in seletores:
+            seletor = sel.get('seletor', '')
+            tipo = sel.get('tipo', 'css')
+            descricao = sel.get('descricao', 'Campo')
+            
+            try:
+                extrair_html = any(palavra in descricao.lower() for palavra in ['imagem', 'imagens', 'gif', 'gifs', 'completa', 'completo', 'html', 'screenshot', 'media'])
+                
+                if tipo == 'css':
+                    elements = soup.select(seletor)
+                    valores = []
+                    for elem in elements:
+                        valor = extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html)
+                        if valor:
+                            valores.append(valor)
+                elif tipo == 'xpath':
+                    tree = lxml_html.fromstring(html_content)
+                    elements = tree.xpath(seletor)
+                    is_xpath_attr = isinstance(elements[0], str) if elements else False
+                    valores = []
+                    for elem in elements:
+                        valor = extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
+                        if valor:
+                            valores.append(valor)
+                else:
+                    valores = []
+                
+                if valores:
+                    all_data.append({
+                        'Campo': descricao,
+                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores[:5]) + ('...' if len(valores) > 5 else ''),
+                        'Total Encontrado': len(valores)
+                    })
+            except Exception as e:
+                all_data.append({
+                    'Campo': descricao,
+                    'Valor': f'Erro: {str(e)}',
+                    'Total Encontrado': 0
+                })
+        
+        return {'url': url, 'data': all_data, 'error': None}
+    except Exception as e:
+        return {'url': url, 'data': None, 'error': str(e)}
+
 # 🔧 FUNÇÃO UNIFICADA DE EXTRAÇÃO (usada em todas as abas)
 def extract_element_value(elem, selector, tipo='css', is_xpath_attr=False, extrair_html=False):
     """
@@ -914,10 +979,23 @@ if st.session_state.soup is not None:
                                 api_key
                             )
                             st.session_state.ai_result = result
+                            
+                            # Se modo multi-URL está ativo, salvar as URLs adicionais
+                            if multi_url_mode and additional_urls:
+                                st.session_state.multi_url_mode = True
+                                st.session_state.additional_urls = additional_urls
+                                st.session_state.multi_url_results = []  # Reset resultados
+                            else:
+                                st.session_state.multi_url_mode = False
+                                st.session_state.additional_urls = []
+                                st.session_state.multi_url_results = []
             
             with col_clear:
                 if st.button("🗑️ Limpar", key="clear_ai_results", use_container_width=True):
                     st.session_state.ai_result = None
+                    st.session_state.multi_url_mode = False
+                    st.session_state.additional_urls = []
+                    st.session_state.multi_url_results = []
                     st.rerun()
             
             if st.session_state.ai_result is not None:
@@ -930,6 +1008,155 @@ if st.session_state.soup is not None:
                     
                     if "explicacao" in result:
                         st.info(f"💡 **Explicação:** {result['explicacao']}")
+                    
+                    # Se modo multi-URL está ativo e há URLs adicionais
+                    if st.session_state.get('multi_url_mode', False) and st.session_state.get('additional_urls', []):
+                        st.markdown("---")
+                        st.markdown("### 🌐 Processamento Multi-URL")
+                        
+                        # Botão para processar todas as URLs
+                        if not st.session_state.get('multi_url_results', []):
+                            if st.button("🚀 Aplicar Seletores em Todas as URLs", type="primary", use_container_width=True, key="process_multi_urls"):
+                                urls_to_process = [st.session_state.url] + st.session_state.additional_urls
+                                total_urls = len(urls_to_process)
+                                
+                                progress_bar = st.progress(0)
+                                status_text = st.empty()
+                                
+                                results = []
+                                for idx, url in enumerate(urls_to_process):
+                                    status_text.text(f"Processando {idx + 1}/{total_urls}: {url[:50]}...")
+                                    
+                                    if url == st.session_state.url:
+                                        # Já temos os dados da página atual
+                                        all_data = []
+                                        for sel_idx, sel in enumerate(result['seletores'], 1):
+                                            seletor = sel.get('seletor', '')
+                                            tipo = sel.get('tipo', 'css')
+                                            descricao = sel.get('descricao', f'Campo {sel_idx}')
+                                            
+                                            try:
+                                                extrair_html = any(palavra in descricao.lower() for palavra in ['imagem', 'imagens', 'gif', 'gifs', 'completa', 'completo', 'html', 'screenshot', 'media'])
+                                                
+                                                if tipo == 'css':
+                                                    elements = st.session_state.soup.select(seletor)
+                                                    valores = []
+                                                    for elem in elements:
+                                                        valor = extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html)
+                                                        if valor:
+                                                            valores.append(valor)
+                                                elif tipo == 'xpath':
+                                                    tree = lxml_html.fromstring(st.session_state.html_content)
+                                                    elements = tree.xpath(seletor)
+                                                    is_xpath_attr = isinstance(elements[0], str) if elements else False
+                                                    valores = []
+                                                    for elem in elements:
+                                                        valor = extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
+                                                        if valor:
+                                                            valores.append(valor)
+                                                else:
+                                                    valores = []
+                                                
+                                                if valores:
+                                                    all_data.append({
+                                                        'Campo': descricao,
+                                                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores[:5]) + ('...' if len(valores) > 5 else ''),
+                                                        'Total Encontrado': len(valores)
+                                                    })
+                                            except Exception as e:
+                                                all_data.append({
+                                                    'Campo': descricao,
+                                                    'Valor': f'Erro: {str(e)}',
+                                                    'Total Encontrado': 0
+                                                })
+                                        
+                                        results.append({'url': url, 'data': all_data, 'error': None})
+                                    else:
+                                        # Processar URLs adicionais
+                                        url_result = apply_selectors_to_url(url, result['seletores'])
+                                        results.append(url_result)
+                                    
+                                    progress_bar.progress((idx + 1) / total_urls)
+                                
+                                st.session_state.multi_url_results = results
+                                progress_bar.empty()
+                                status_text.empty()
+                                st.rerun()
+                        else:
+                            st.success(f"✅ {len(st.session_state.multi_url_results)} URL(s) processada(s)!")
+                            
+                            # Exibir resultados organizados por URL
+                            st.markdown("### 📊 Resultados por URL")
+                            
+                            for idx, url_result in enumerate(st.session_state.multi_url_results, 1):
+                                with st.expander(f"📄 URL {idx}: {url_result['url'][:80]}...", expanded=(idx == 1)):
+                                    if url_result['error']:
+                                        st.error(f"❌ Erro ao processar: {url_result['error']}")
+                                    elif url_result['data']:
+                                        df = pd.DataFrame(url_result['data'])
+                                        st.dataframe(df, use_container_width=True)
+                                        
+                                        # Download individual
+                                        col1, col2 = st.columns(2)
+                                        with col1:
+                                            csv = df.to_csv(index=False).encode('utf-8')
+                                            st.download_button(
+                                                "📥 Download CSV",
+                                                csv,
+                                                f"dados_url_{idx}.csv",
+                                                "text/csv",
+                                                key=f'multi_csv_{idx}'
+                                            )
+                                        with col2:
+                                            json_str = df.to_json(orient='records', force_ascii=False, indent=2)
+                                            st.download_button(
+                                                "📥 Download JSON",
+                                                json_str,
+                                                f"dados_url_{idx}.json",
+                                                "application/json",
+                                                key=f'multi_json_{idx}'
+                                            )
+                                    else:
+                                        st.warning("⚠️ Nenhum dado extraído desta URL")
+                            
+                            # Download combinado de todas as URLs
+                            st.markdown("---")
+                            st.markdown("### 📦 Download Combinado")
+                            
+                            all_combined_data = []
+                            for url_result in st.session_state.multi_url_results:
+                                if url_result['data'] and not url_result['error']:
+                                    for item in url_result['data']:
+                                        row = {'URL': url_result['url']}
+                                        row.update(item)
+                                        all_combined_data.append(row)
+                            
+                            if all_combined_data:
+                                df_combined = pd.DataFrame(all_combined_data)
+                                
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    csv_combined = df_combined.to_csv(index=False).encode('utf-8')
+                                    st.download_button(
+                                        "📥 Download CSV (Todas as URLs)",
+                                        csv_combined,
+                                        "dados_todas_urls.csv",
+                                        "text/csv",
+                                        key='multi_all_csv',
+                                        use_container_width=True
+                                    )
+                                with col2:
+                                    json_combined = df_combined.to_json(orient='records', force_ascii=False, indent=2)
+                                    st.download_button(
+                                        "📥 Download JSON (Todas as URLs)",
+                                        json_combined,
+                                        "dados_todas_urls.json",
+                                        "application/json",
+                                        key='multi_all_json',
+                                        use_container_width=True
+                                    )
+                        
+                        st.markdown("---")
                     
                     if "seletores" in result:
                         st.markdown("---")
