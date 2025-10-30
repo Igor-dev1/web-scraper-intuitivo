@@ -1579,7 +1579,13 @@ if st.session_state.soup is not None:
                                                     row = {desc: vals[i] if i < len(vals) else '' for desc, vals in all_valores.items()}
                                                     data_full.append(row)
                                             
-                                            results.append({'url': loaded_url['url'], 'data_preview': data_preview, 'data_full': data_full, 'error': None})
+                                            results.append({
+                                                'url': loaded_url['url'], 
+                                                'data_preview': data_preview, 
+                                                'data_full': data_full, 
+                                                'ai_explanation': ai_result.get('explicacao', ''),
+                                                'error': None
+                                            })
                                     
                                     else:  # extract_direct
                                         # Extração direta para essa URL
@@ -1592,7 +1598,7 @@ if st.session_state.soup is not None:
                                             )
                                         
                                         if "error" in direct_result:
-                                            results.append({'url': loaded_url['url'], 'data_preview': None, 'data_full': None, 'error': direct_result['error']})
+                                            results.append({'url': loaded_url['url'], 'data_preview': None, 'data_full': None, 'ai_explanation': None, 'error': direct_result['error']})
                                         else:
                                             # Converter resultado direto para formato de preview
                                             data_preview = []
@@ -1607,7 +1613,13 @@ if st.session_state.soup is not None:
                                                     item['campo']: item['valor']
                                                 })
                                             
-                                            results.append({'url': loaded_url['url'], 'data_preview': data_preview, 'data_full': data_full, 'error': None})
+                                            results.append({
+                                                'url': loaded_url['url'], 
+                                                'data_preview': data_preview, 
+                                                'data_full': data_full,
+                                                'ai_explanation': direct_result.get('resumo', ''),
+                                                'error': None
+                                            })
                                     
                                     progress_bar.progress((idx + 1) / total)
                                 
