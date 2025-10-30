@@ -667,6 +667,109 @@ def load_page_with_browser(url):
     except Exception as e:
         return f'ERROR:{str(e)}'
 
+def extract_data_directly_with_ai(html_content, user_query, ai_provider, api_key):
+    """
+    Usa IA para extrair dados DIRETAMENTE do HTML sem identificar seletores.
+    Mais rápido e barato - ideal para consultas únicas.
+    """
+    
+    # Limpar HTML (mesmo processo do extract_with_ai)
+    soup = BeautifulSoup(html_content, 'lxml')
+    
+    for tag in soup(['script', 'style', 'noscript', 'iframe']):
+        tag.decompose()
+    
+    for tag in soup.find_all('svg'):
+        tag.decompose()
+    
+    for comment in soup.find_all(string=lambda text: isinstance(text, str) and text.strip().startswith('<!--')):
+        comment.extract()
+    
+    for tag in soup.find_all():
+        attrs_to_remove = [attr for attr in tag.attrs if attr.startswith('on')]
+        for attr in attrs_to_remove:
+            del tag[attr]
+    
+    html_clean = str(soup)
+    html_preview = html_clean[:200000] if len(html_clean) > 200000 else html_clean
+    
+    prompt = f"""Você é um especialista em extração de dados web. Analise o HTML e extraia DIRETAMENTE os dados solicitados.
+
+HTML da página (limpo):
+{html_preview}
+
+Solicitação do usuário:
+{user_query}
+
+IMPORTANTE:
+- Extraia os dados DIRETAMENTE do HTML
+- NÃO retorne seletores CSS/XPath
+- Retorne apenas os valores encontrados
+- Se um campo tiver múltiplos valores, liste todos
+- Se não encontrar algo, retorne "Não encontrado"
+
+Formato de resposta JSON:
+{{
+    "dados": [
+        {{
+            "campo": "nome do campo",
+            "valor": "valor extraído ou lista de valores",
+            "encontrado": true
+        }}
+    ],
+    "resumo": "breve resumo do que foi encontrado"
+}}
+
+Retorne APENAS o JSON válido, sem markdown ou texto adicional."""
+
+    try:
+        if ai_provider == "OpenAI (ChatGPT)":
+            if not OPENAI_AVAILABLE:
+                return {"error": "OpenAI não está disponível"}
+            client = OpenAI(api_key=api_key)
+            response = client.chat.completions.create(
+                model="gpt-5",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
+            )
+            return json.loads(response.choices[0].message.content)
+        
+        elif ai_provider == "Anthropic (Claude)":
+            if not ANTHROPIC_AVAILABLE:
+                return {"error": "Anthropic não está disponível"}
+            client = Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            content_text = ""
+            for block in response.content:
+                if hasattr(block, 'text'):
+                    content_text += block.text
+            if not content_text.strip():
+                return {"error": "Resposta vazia da API Anthropic"}
+            return json.loads(content_text)
+        
+        elif ai_provider == "Google (Gemini)":
+            if not GEMINI_AVAILABLE:
+                return {"error": "Gemini não está disponível"}
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            return json.loads(response.text)
+        
+        else:
+            return {"error": f"Provedor de IA não reconhecido: {ai_provider}"}
+        
+    except Exception as e:
+        return {"error": f"Erro ao chamar a IA: {str(e)}"}
+
 def extract_with_ai(html_content, user_query, ai_provider, api_key):
     """
     Usa IA para identificar seletores CSS/XPath baseado na descrição do usuário.
@@ -1377,11 +1480,11 @@ if st.session_state.soup is not None:
                     else:
                         st.warning("⚠️ Selecione pelo menos uma URL para processar")
             
-            # Botão simples para página atual (sem multi-URL)
+            # Botões para página atual (sem multi-URL)
             elif not multi_url_mode:
-                col_btn, col_clear = st.columns([3, 1])
-                with col_btn:
-                    if st.button("🤖 Identificar Seletores com IA", type="primary", key="ai_extract_button", use_container_width=True):
+                col1, col2, col3 = st.columns([2, 2, 1])
+                with col1:
+                    if st.button("🤖 Identificar Seletores", type="primary", key="ai_extract_button", use_container_width=True, help="Identifica seletores CSS/XPath reutilizáveis"):
                         if not api_key:
                             st.warning("⚠️ Por favor, forneça uma API Key")
                         elif not user_query:
@@ -1395,10 +1498,29 @@ if st.session_state.soup is not None:
                                     api_key
                                 )
                                 st.session_state.ai_result = result
+                                st.session_state.ai_direct_result = None  # Limpar resultado direto
                 
-                with col_clear:
+                with col2:
+                    if st.button("⚡ Extrair Dados Direto", type="secondary", key="ai_direct_extract_button", use_container_width=True, help="Extrai dados diretamente (mais rápido, sem seletores)"):
+                        if not api_key:
+                            st.warning("⚠️ Por favor, forneça uma API Key")
+                        elif not user_query:
+                            st.warning("⚠️ Por favor, descreva o que você quer extrair")
+                        else:
+                            with st.spinner(f"Extraindo dados com {ai_provider}..."):
+                                result = extract_data_directly_with_ai(
+                                    st.session_state.html_content,
+                                    user_query,
+                                    ai_provider,
+                                    api_key
+                                )
+                                st.session_state.ai_direct_result = result
+                                st.session_state.ai_result = None  # Limpar resultado de seletores
+                
+                with col3:
                     if st.button("🗑️ Limpar", key="clear_ai_results", use_container_width=True):
                         st.session_state.ai_result = None
+                        st.session_state.ai_direct_result = None
                         st.rerun()
             
             if st.session_state.ai_result is not None:
@@ -1840,6 +1962,71 @@ if st.session_state.soup is not None:
                             )
                         else:
                             st.warning("⚠️ Nenhum seletor funcionou. Tente descrever de forma diferente.")
+            
+            # Exibir resultado da EXTRAÇÃO DIRETA
+            if st.session_state.get('ai_direct_result') is not None:
+                direct_result = st.session_state.ai_direct_result
+                
+                if "error" in direct_result:
+                    st.error(f"❌ {direct_result['error']}")
+                else:
+                    st.success("✅ Dados extraídos diretamente pela IA!")
+                    
+                    if "resumo" in direct_result:
+                        st.info(f"💡 **Resumo:** {direct_result['resumo']}")
+                    
+                    if "dados" in direct_result:
+                        st.markdown("---")
+                        st.markdown("### 📊 Dados Extraídos")
+                        
+                        # Criar tabela com os dados
+                        dados_tabela = []
+                        for campo_info in direct_result['dados']:
+                            campo = campo_info.get('campo', 'Campo')
+                            valor = campo_info.get('valor', '')
+                            encontrado = campo_info.get('encontrado', False)
+                            
+                            status = "✅" if encontrado else "❌"
+                            
+                            # Se o valor for uma lista, juntar em string
+                            if isinstance(valor, list):
+                                valor_str = ', '.join(str(v) for v in valor[:5]) + ('...' if len(valor) > 5 else '')
+                                total = len(valor)
+                            else:
+                                valor_str = str(valor)[:200]
+                                total = 1 if encontrado else 0
+                            
+                            dados_tabela.append({
+                                'Status': status,
+                                'Campo': campo,
+                                'Valor': valor_str,
+                                'Total': total
+                            })
+                        
+                        df_direct = pd.DataFrame(dados_tabela)
+                        st.dataframe(df_direct, use_container_width=True)
+                        
+                        # Downloads
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            csv_direct = df_direct.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                "📥 Download CSV",
+                                csv_direct,
+                                "dados_ia_direto.csv",
+                                "text/csv",
+                                key='direct_csv'
+                            )
+                        with col2:
+                            # JSON com dados originais (não da tabela)
+                            json_direct = json.dumps(direct_result['dados'], ensure_ascii=False, indent=2)
+                            st.download_button(
+                                "📥 Download JSON",
+                                json_direct,
+                                "dados_ia_direto.json",
+                                "application/json",
+                                key='direct_json'
+                            )
     
     # Tab 4: Scraping em Massa
     with tab4:
