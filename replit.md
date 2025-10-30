@@ -6,6 +6,22 @@ This project is a Streamlit-based web scraping application designed to provide a
 
 ## Recent Changes
 
+### State Management Isolation (October 30, 2025)
+- ✅ **Isolamento de Estados**: Sistema de limpeza automática para evitar mistura de dados
+  - **Problema Resolvido**: Dados de operações anteriores não aparecem mais em novos processamentos
+  - **Funções Helper**:
+    - `reset_single_extraction()`: Limpa resultados de página única
+    - `reset_multi_url_extraction()`: Limpa resultados multi-URL
+  - **Limpeza Automática**:
+    - Ao ativar multi-URL: limpa resultados de página única (ai_result, ai_direct_result)
+    - Ao desativar multi-URL: limpa resultados multi-URL (multi_url_results, loaded_urls)
+    - Ao carregar novas URLs: limpa resultados anteriores
+  - **Detecção de Mudança**: Compara estado anterior com atual via `previous_multi_url_mode`
+  - **Benefícios UX**:
+    - Cada modo opera isoladamente sem interferência
+    - Workflow mais previsível e intuitivo
+    - Sem confusão entre dados de diferentes operações
+
 ### AI Direct Data Extraction (October 30, 2025)
 - ✅ **Extração Direta com IA**: Novo modo de IA que extrai dados sem identificar seletores
   - **Dois Botões na Tab 3**:
