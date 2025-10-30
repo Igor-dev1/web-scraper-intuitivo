@@ -1118,7 +1118,7 @@ if st.session_state.soup is not None:
                         "same_selectors": "⚡ Mesmos seletores (rápido e econômico) - IA identifica uma vez e aplica em todas",
                         "individual_ai": "🎯 Seletores individuais (preciso) - IA analisa cada URL separadamente"
                     }[x],
-                    key="multi_url_strategy",
+                    key="multi_url_strategy_radio",
                     help="Escolha 'Mesmos seletores' para páginas com estrutura similar, ou 'Seletores individuais' para páginas diferentes"
                 )
                 
