@@ -667,6 +667,17 @@ def load_page_with_browser(url):
     except Exception as e:
         return f'ERROR:{str(e)}'
 
+def reset_single_extraction():
+    """Limpa resultados de extração de página única"""
+    st.session_state.ai_result = None
+    st.session_state.ai_direct_result = None
+
+def reset_multi_url_extraction():
+    """Limpa resultados de extração multi-URL"""
+    st.session_state.multi_url_results = None
+    st.session_state.loaded_urls = []
+    st.session_state.selected_url_indices = []
+
 def extract_data_directly_with_ai(html_content, user_query, ai_provider, api_key):
     """
     Usa IA para extrair dados DIRETAMENTE do HTML sem identificar seletores.
@@ -1268,6 +1279,18 @@ if st.session_state.soup is not None:
                 key="multi_url_ai_mode"
             )
             
+            # Detectar mudança de modo e limpar dados antigos
+            previous_mode = st.session_state.get('previous_multi_url_mode', False)
+            if multi_url_mode != previous_mode:
+                st.session_state.previous_multi_url_mode = multi_url_mode
+                if multi_url_mode:
+                    # Ativou multi-URL: limpar resultados de página única
+                    reset_single_extraction()
+                else:
+                    # Desativou multi-URL: limpar resultados multi-URL
+                    reset_multi_url_extraction()
+                st.rerun()
+            
             if multi_url_mode:
                 with st.expander("**ETAPA 1: Carregar URLs**", expanded=not st.session_state.get('loaded_urls', [])):
                     urls_text = st.text_area(
@@ -1283,6 +1306,9 @@ if st.session_state.soup is not None:
                             if urls_text:
                                 urls_to_load = [url.strip() for url in urls_text.split('\n') if url.strip()]
                                 if urls_to_load:
+                                    # Limpar resultados anteriores ao carregar novas URLs
+                                    st.session_state.multi_url_results = None
+                                    
                                     extraction_method = st.session_state.get('extraction_method', 'python')
                                     
                                     progress_bar = st.progress(0)
