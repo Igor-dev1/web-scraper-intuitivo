@@ -6,18 +6,25 @@ This project is a Streamlit-based web scraping application designed to provide a
 
 ## Recent Changes
 
-### Multi-URL AI Extraction (October 30, 2025)
+### Multi-URL AI Extraction with Dual Strategy (October 30, 2025)
 - ✅ **Modo Multi-URL**: Nova funcionalidade na Tab 3 (Extração com IA)
-  - **Checkbox para ativar**: Permite processar múltiplas URLs de uma vez
-  - **IA identifica uma vez**: IA identifica seletores na página atual
-  - **Aplica em todas**: Seletores são aplicados automaticamente em todas as URLs fornecidas
+  - **Duas estratégias de processamento**:
+    - **⚡ Mesmos seletores (rápido e econômico)**: IA identifica seletores UMA VEZ na página atual e aplica em todas as URLs
+    - **🎯 Seletores individuais (preciso)**: IA analisa CADA URL separadamente e identifica seletores específicos
+  - **Respeita método de extração**: TODAS as URLs usam o método escolhido (Python ou Proxy Server)
+  - **Funções implementadas**:
+    - `apply_selectors_to_url(url, seletores, timeout, extraction_method)`: Aplica mesmos seletores com método escolhido
+    - `apply_ai_per_url(url, user_query, ai_provider, api_key, timeout, extraction_method)`: IA individual por URL
   - **Resultados organizados**: Expanders individuais para cada URL com preview
+  - **Explicações da IA**: No modo individual, mostra explicação da IA para cada URL
   - **Download flexível**: 
     - CSV/JSON individual por URL (dados completos)
     - Download combinado de todas as URLs em um único arquivo
   - **Progress bar**: Indicador visual do progresso do processamento
-  - **Função auxiliar**: `apply_selectors_to_url()` com separação de preview/dados completos
-  - **Casos de uso**: Ideal para quando scraping manual falha ou para processar múltiplas páginas similares
+  - **Estrutura de dados**: Row-oriented com preview/full separation para preservar registros completos
+  - **Casos de uso**: 
+    - Mesmos seletores: páginas similares (produtos, artigos, etc)
+    - Seletores individuais: páginas diferentes ou quando mesmos seletores falham
 
 ### Migration to Streamlit Cloud (October 28, 2025)
 - ✅ **Simplified API Key Management**: Removed custom API key management panel
