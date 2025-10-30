@@ -21,10 +21,21 @@ def proxy():
         proxy_url = f'https://corsproxy.io/?{target_url}'
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
         }
         
-        response = requests.get(proxy_url, headers=headers, timeout=15)
+        # Se for Steam, adicionar cookies de verificação de idade
+        cookies = {}
+        if 'steampowered.com' in target_url:
+            cookies = {
+                'wants_mature_content': '1',
+                'birthtime': '631152000',
+                'lastagecheckage': '1-0-1990',
+                'mature_content': '1'
+            }
+        
+        response = requests.get(proxy_url, headers=headers, cookies=cookies, timeout=15)
         response.raise_for_status()
         
         # Retornar HTML com headers CORS corretos

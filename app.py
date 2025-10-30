@@ -994,6 +994,9 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     
+    # Salvar em session_state para uso em Multi-URL e outras funções
+    st.session_state.extraction_method = 'proxy' if loading_method == "🌐 Proxy CORS" else 'python'
+    
     st.divider()
     
     # Opção de carregar HTML ou fazer upload
