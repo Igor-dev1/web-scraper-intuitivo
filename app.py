@@ -1168,6 +1168,9 @@ if st.session_state.soup is not None:
                                 st.session_state.multi_url_mode = True
                                 st.session_state.additional_urls = additional_urls
                                 st.session_state.multi_url_strategy = multi_url_strategy
+                                st.session_state.user_query = user_query  # Salvar query para modo individual
+                                st.session_state.ai_provider = ai_provider  # Salvar provedor
+                                st.session_state.ai_api_key = api_key  # Salvar API key
                                 st.session_state.multi_url_results = []  # Reset resultados
                             else:
                                 st.session_state.multi_url_mode = False
@@ -1291,9 +1294,9 @@ if st.session_state.soup is not None:
                                             # Modo individual: IA analisa cada URL separadamente
                                             url_result = apply_ai_per_url(
                                                 url, 
-                                                user_query,
-                                                ai_provider,
-                                                api_key,
+                                                st.session_state.get('user_query', user_query),
+                                                st.session_state.get('ai_provider', ai_provider),
+                                                st.session_state.get('ai_api_key', api_key),
                                                 timeout=10,
                                                 extraction_method=extraction_method
                                             )
