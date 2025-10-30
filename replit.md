@@ -6,6 +6,36 @@ This project is a Streamlit-based web scraping application designed to provide a
 
 ## Recent Changes
 
+### Enhanced Bulk Scraping with Selective Downloads (October 30, 2025)
+- ✅ **Scraping em Massa Aprimorado**: Sistema completo de seleção e filtragem de resultados
+  - **Detecção Automática de Problemas**:
+    - Identifica URLs com campos vazios, 'nan', 'none' ou erros
+    - Métricas visuais: Total URLs, URLs Completas, URLs com Problemas
+    - Indicadores visuais (✅/⚠️) em cada URL
+  - **Sistema de Filtros**:
+    - 📋 Todas as URLs
+    - ✅ Apenas URLs Completas
+    - ⚠️ Apenas URLs com Problemas
+  - **Seleção Individual por URL**:
+    - Checkbox em cada URL para marcar/desmarcar
+    - Botões "Marcar Todas (Filtradas)" e "Desmarcar Todas"
+    - Contador dinâmico de URLs selecionadas
+    - Preview expandable de problemas específicos em cada URL
+  - **Downloads Seletivos**:
+    - CSV/JSON apenas das URLs selecionadas
+    - Download individual quando só 1 URL está marcada
+    - Nome de arquivo automático baseado no número de URLs
+    - Opção separada para baixar TODAS as URLs (não filtrado)
+  - **Session State Management**:
+    - Resultados salvos em `st.session_state.bulk_results`
+    - Seleção resetada automaticamente a cada novo scraping
+    - Todas as URLs novas ficam marcadas por padrão
+  - **Benefícios UX**:
+    - Vê imediatamente quais URLs tiveram problemas
+    - Pode baixar só as URLs que funcionaram
+    - Não precisa baixar tudo quando só quer algumas URLs
+    - Filtros rápidos para encontrar problemas
+
 ### Two-Phase Multi-URL Workflow (October 30, 2025)
 - ✅ **Workflow em Duas Etapas**: Refatoração completa do Modo Multi-URL para melhor UX
   - **ETAPA 1: Carregar URLs**:
