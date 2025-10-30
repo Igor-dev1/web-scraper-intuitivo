@@ -6,6 +6,29 @@ This project is a Streamlit-based web scraping application designed to provide a
 
 ## Recent Changes
 
+### AI Direct Data Extraction (October 30, 2025)
+- ✅ **Extração Direta com IA**: Novo modo de IA que extrai dados sem identificar seletores
+  - **Dois Botões na Tab 3**:
+    - **🔍 Identificar Seletores com IA**: Modo original (gera seletores reutilizáveis)
+    - **⚡ Extrair Dados Direto com IA**: Modo novo (extração direta, mais rápido)
+  - **Vantagens da Extração Direta**:
+    - Mais rápido para consultas únicas
+    - Mais econômico (menos tokens)
+    - Ideal para páginas que mudam frequentemente
+    - Não requer aplicar seletores manualmente
+  - **Formato de Resposta**:
+    - JSON estruturado com campos, valores e status
+    - Tabela visual com resultados
+    - Downloads em CSV e JSON
+  - **Robustez**:
+    - Validação de JSON na resposta da IA
+    - Fallback para provedores não reconhecidos
+    - Tratamento de erros detalhado
+  - **Benefícios UX**:
+    - Escolhe entre velocidade (direto) ou reutilização (seletores)
+    - Interface clara mostrando diferença entre os dois modos
+    - Resultados imediatos sem etapas intermediárias
+
 ### Enhanced Bulk Scraping with Selective Downloads (October 30, 2025)
 - ✅ **Scraping em Massa Aprimorado**: Sistema completo de seleção e filtragem de resultados
   - **Detecção Automática de Problemas**:
