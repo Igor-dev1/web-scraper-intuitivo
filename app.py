@@ -1480,8 +1480,10 @@ if st.session_state.soup is not None:
                     else:
                         st.warning("⚠️ Selecione pelo menos uma URL para processar")
             
-            # Botões para página atual (sem multi-URL)
-            elif not multi_url_mode:
+            # Botões para processar a página atual
+            if not (multi_url_mode and st.session_state.get('loaded_urls', [])):
+                if multi_url_mode:
+                    st.info("💡 **Dica:** Os botões abaixo processam apenas a página atual carregada. Use a seção Multi-URL acima para processar múltiplas URLs.")
                 col1, col2, col3 = st.columns([2, 2, 1])
                 with col1:
                     if st.button("🤖 Identificar Seletores", type="primary", key="ai_extract_button", use_container_width=True, help="Identifica seletores CSS/XPath reutilizáveis"):
