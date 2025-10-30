@@ -6,6 +6,19 @@ This project is a Streamlit-based web scraping application designed to provide a
 
 ## Recent Changes
 
+### Multi-URL AI Extraction (October 30, 2025)
+- ✅ **Modo Multi-URL**: Nova funcionalidade na Tab 3 (Extração com IA)
+  - **Checkbox para ativar**: Permite processar múltiplas URLs de uma vez
+  - **IA identifica uma vez**: IA identifica seletores na página atual
+  - **Aplica em todas**: Seletores são aplicados automaticamente em todas as URLs fornecidas
+  - **Resultados organizados**: Expanders individuais para cada URL com preview
+  - **Download flexível**: 
+    - CSV/JSON individual por URL (dados completos)
+    - Download combinado de todas as URLs em um único arquivo
+  - **Progress bar**: Indicador visual do progresso do processamento
+  - **Função auxiliar**: `apply_selectors_to_url()` com separação de preview/dados completos
+  - **Casos de uso**: Ideal para quando scraping manual falha ou para processar múltiplas páginas similares
+
 ### Migration to Streamlit Cloud (October 28, 2025)
 - ✅ **Simplified API Key Management**: Removed custom API key management panel
   - **Environment-only**: All API keys now configured via Streamlit Secrets
@@ -49,6 +62,7 @@ The application offers various extraction methods:
 - **ID**: Extract an element by its ID.
 - **Avançado**: Multi-attribute extraction with customizable options.
 - **Extração com IA**: AI-powered selector identification based on natural language descriptions, supporting multiple AI providers.
+  - **Modo Multi-URL**: Apply AI-identified selectors across multiple URLs in batch, with individual and combined download options.
 - **Scraping em Massa**: Batch processing of multiple URLs with the same selectors.
 - **Teste Universal**: Test multiple mixed CSS and XPath selectors simultaneously.
 - **Scraping Automático**: Automated scraping tasks with scheduling, email notifications, and admin-only access.

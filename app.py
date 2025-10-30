@@ -58,7 +58,12 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         timeout: Timeout para requisição
     
     Returns:
-        dict: {'url': url, 'data': lista_de_dados, 'error': None} ou {'url': url, 'data': None, 'error': mensagem}
+        dict: {
+            'url': url,
+            'data_preview': lista com preview dos dados (para exibição),
+            'data_full': lista com TODOS os valores (para download),
+            'error': None
+        }
     """
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -68,7 +73,9 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         soup = BeautifulSoup(response.text, 'lxml')
         html_content = response.text
         
-        all_data = []
+        data_preview = []
+        data_full = []
+        
         for sel in seletores:
             seletor = sel.get('seletor', '')
             tipo = sel.get('tipo', 'css')
@@ -97,21 +104,35 @@ def apply_selectors_to_url(url, seletores, timeout=10):
                     valores = []
                 
                 if valores:
-                    all_data.append({
+                    # Preview: resumo para exibição na tela
+                    data_preview.append({
                         'Campo': descricao,
-                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores[:5]) + ('...' if len(valores) > 5 else ''),
+                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v)[:100] for v in valores[:3]) + ('...' if len(valores) > 3 else ''),
                         'Total Encontrado': len(valores)
                     })
+                    
+                    # Full: TODOS os valores para download
+                    # Criar uma linha para cada valor encontrado
+                    for valor in valores:
+                        data_full.append({
+                            descricao: valor
+                        })
+                else:
+                    data_preview.append({
+                        'Campo': descricao,
+                        'Valor': 'Nenhum resultado',
+                        'Total Encontrado': 0
+                    })
             except Exception as e:
-                all_data.append({
+                data_preview.append({
                     'Campo': descricao,
                     'Valor': f'Erro: {str(e)}',
                     'Total Encontrado': 0
                 })
         
-        return {'url': url, 'data': all_data, 'error': None}
+        return {'url': url, 'data_preview': data_preview, 'data_full': data_full, 'error': None}
     except Exception as e:
-        return {'url': url, 'data': None, 'error': str(e)}
+        return {'url': url, 'data_preview': None, 'data_full': None, 'error': str(e)}
 
 # 🔧 FUNÇÃO UNIFICADA DE EXTRAÇÃO (usada em todas as abas)
 def extract_element_value(elem, selector, tipo='css', is_xpath_attr=False, extrair_html=False):
@@ -1070,7 +1091,7 @@ if st.session_state.soup is not None:
                                                     'Total Encontrado': 0
                                                 })
                                         
-                                        results.append({'url': url, 'data': all_data, 'error': None})
+                                        results.append({'url': url, 'data_preview': all_data, 'data_full': all_data, 'error': None})
                                     else:
                                         # Processar URLs adicionais
                                         url_result = apply_selectors_to_url(url, result['seletores'])
@@ -1092,30 +1113,34 @@ if st.session_state.soup is not None:
                                 with st.expander(f"📄 URL {idx}: {url_result['url'][:80]}...", expanded=(idx == 1)):
                                     if url_result['error']:
                                         st.error(f"❌ Erro ao processar: {url_result['error']}")
-                                    elif url_result['data']:
-                                        df = pd.DataFrame(url_result['data'])
-                                        st.dataframe(df, use_container_width=True)
+                                    elif url_result.get('data_preview'):
+                                        # Exibir preview dos dados
+                                        df_preview = pd.DataFrame(url_result['data_preview'])
+                                        st.dataframe(df_preview, use_container_width=True)
                                         
-                                        # Download individual
-                                        col1, col2 = st.columns(2)
-                                        with col1:
-                                            csv = df.to_csv(index=False).encode('utf-8')
-                                            st.download_button(
-                                                "📥 Download CSV",
-                                                csv,
-                                                f"dados_url_{idx}.csv",
-                                                "text/csv",
-                                                key=f'multi_csv_{idx}'
-                                            )
-                                        with col2:
-                                            json_str = df.to_json(orient='records', force_ascii=False, indent=2)
-                                            st.download_button(
-                                                "📥 Download JSON",
-                                                json_str,
-                                                f"dados_url_{idx}.json",
-                                                "application/json",
-                                                key=f'multi_json_{idx}'
-                                            )
+                                        # Download com dados COMPLETOS
+                                        if url_result.get('data_full'):
+                                            df_full = pd.DataFrame(url_result['data_full'])
+                                            
+                                            col1, col2 = st.columns(2)
+                                            with col1:
+                                                csv = df_full.to_csv(index=False).encode('utf-8')
+                                                st.download_button(
+                                                    "📥 Download CSV (Completo)",
+                                                    csv,
+                                                    f"dados_url_{idx}.csv",
+                                                    "text/csv",
+                                                    key=f'multi_csv_{idx}'
+                                                )
+                                            with col2:
+                                                json_str = df_full.to_json(orient='records', force_ascii=False, indent=2)
+                                                st.download_button(
+                                                    "📥 Download JSON (Completo)",
+                                                    json_str,
+                                                    f"dados_url_{idx}.json",
+                                                    "application/json",
+                                                    key=f'multi_json_{idx}'
+                                                )
                                     else:
                                         st.warning("⚠️ Nenhum dado extraído desta URL")
                             
@@ -1125,14 +1150,15 @@ if st.session_state.soup is not None:
                             
                             all_combined_data = []
                             for url_result in st.session_state.multi_url_results:
-                                if url_result['data'] and not url_result['error']:
-                                    for item in url_result['data']:
+                                if url_result.get('data_full') and not url_result['error']:
+                                    for item in url_result['data_full']:
                                         row = {'URL': url_result['url']}
                                         row.update(item)
                                         all_combined_data.append(row)
                             
                             if all_combined_data:
                                 df_combined = pd.DataFrame(all_combined_data)
+                                st.info(f"📊 Total de registros: {len(all_combined_data)}")
                                 
                                 col1, col2 = st.columns(2)
                                 with col1:
