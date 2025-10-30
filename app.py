@@ -2075,28 +2075,203 @@ if st.session_state.soup is not None:
                 status_text.empty()
                 progress_bar.empty()
                 if all_data:
+                    # Salvar resultados no session_state para permitir seleção
+                    st.session_state.bulk_results = all_data
+                    
+                    # Agrupar dados por fonte (URL ou arquivo)
                     df = pd.DataFrame(all_data)
+                    fontes_unicas = df['Fonte'].unique()
+                    
+                    # Detectar URLs com problemas (campos vazios ou com "erro")
+                    urls_com_problemas = []
+                    urls_completas = []
+                    
+                    for fonte in fontes_unicas:
+                        dados_fonte = df[df['Fonte'] == fonte]
+                        # Verificar se há campos vazios ou com erro
+                        tem_problema = False
+                        for _, row in dados_fonte.iterrows():
+                            for col in row.index:
+                                if col != 'Fonte' and col != '#':
+                                    valor = str(row[col]).lower()
+                                    if valor in ['', 'nan', 'none'] or 'erro' in valor or len(valor.strip()) == 0:
+                                        tem_problema = True
+                                        break
+                            if tem_problema:
+                                break
+                        
+                        if tem_problema:
+                            urls_com_problemas.append(fonte)
+                        else:
+                            urls_completas.append(fonte)
+                    
+                    # SEMPRE reinicializar seleção em cada scraping (todas marcadas por padrão)
+                    st.session_state.bulk_selected_sources = list(fontes_unicas)
+                    
                     st.success(f"✅ Scraping concluído! {len(all_data)} elementos extraídos de {total} fonte(s)")
-                    st.dataframe(df, use_container_width=True)
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        csv = df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            "📥 Download CSV (Todos os Dados)",
-                            csv,
-                            "scraping_massa.csv",
-                            "text/csv",
-                            key='bulk_csv'
-                        )
-                    with col2:
-                        json_str = df.to_json(orient='records', force_ascii=False, indent=2)
-                        st.download_button(
-                            "📥 Download JSON (Todos os Dados)",
-                            json_str,
-                            "scraping_massa.json",
-                            "application/json",
-                            key='bulk_json'
-                        )
+                    
+                    # Resumo com indicadores
+                    col_info1, col_info2, col_info3 = st.columns(3)
+                    with col_info1:
+                        st.metric("Total de URLs", len(fontes_unicas))
+                    with col_info2:
+                        st.metric("✅ URLs Completas", len(urls_completas))
+                    with col_info3:
+                        st.metric("⚠️ URLs com Problemas", len(urls_com_problemas))
+                    
+                    st.divider()
+                    
+                    # Filtros
+                    st.markdown("**Filtrar Resultados:**")
+                    filtro = st.radio(
+                        "Mostrar:",
+                        ["📋 Todas as URLs", "✅ Apenas URLs Completas", "⚠️ Apenas URLs com Problemas"],
+                        horizontal=True,
+                        key="bulk_filter"
+                    )
+                    
+                    # Aplicar filtro
+                    if filtro == "✅ Apenas URLs Completas":
+                        fontes_filtradas = urls_completas
+                    elif filtro == "⚠️ Apenas URLs com Problemas":
+                        fontes_filtradas = urls_com_problemas
+                    else:
+                        fontes_filtradas = list(fontes_unicas)
+                    
+                    st.divider()
+                    
+                    # Seleção de URLs para download
+                    st.markdown("**Selecione as URLs para baixar:**")
+                    
+                    col_select_all, col_deselect_all = st.columns(2)
+                    with col_select_all:
+                        if st.button("✅ Marcar Todas (Filtradas)", key="select_all_bulk", use_container_width=True):
+                            st.session_state.bulk_selected_sources = fontes_filtradas.copy()
+                            st.rerun()
+                    with col_deselect_all:
+                        if st.button("❌ Desmarcar Todas", key="deselect_all_bulk", use_container_width=True):
+                            st.session_state.bulk_selected_sources = []
+                            st.rerun()
+                    
+                    # Mostrar checkboxes para cada URL
+                    for fonte in fontes_filtradas:
+                        dados_fonte = df[df['Fonte'] == fonte]
+                        
+                        # Indicador de problema
+                        is_problema = fonte in urls_com_problemas
+                        status_icon = "⚠️" if is_problema else "✅"
+                        
+                        col_check, col_url, col_preview = st.columns([1, 6, 3])
+                        
+                        with col_check:
+                            is_selected = fonte in st.session_state.bulk_selected_sources
+                            if st.checkbox("", value=is_selected, key=f"bulk_select_{fonte}", label_visibility="collapsed"):
+                                if fonte not in st.session_state.bulk_selected_sources:
+                                    st.session_state.bulk_selected_sources.append(fonte)
+                            else:
+                                if fonte in st.session_state.bulk_selected_sources:
+                                    st.session_state.bulk_selected_sources.remove(fonte)
+                        
+                        with col_url:
+                            url_display = fonte[:80] + "..." if len(fonte) > 80 else fonte
+                            st.text(f"{status_icon} {url_display}")
+                        
+                        with col_preview:
+                            st.caption(f"{len(dados_fonte)} registro(s)")
+                        
+                        # Mostrar detalhes se tiver problemas
+                        if is_problema:
+                            with st.expander(f"🔍 Ver problemas - {fonte[:50]}..."):
+                                for _, row in dados_fonte.iterrows():
+                                    problemas = []
+                                    for col in row.index:
+                                        if col != 'Fonte' and col != '#':
+                                            valor = str(row[col]).lower()
+                                            if valor in ['', 'nan', 'none'] or 'erro' in valor or len(valor.strip()) == 0:
+                                                problemas.append(f"**{col}**: {valor if valor else '(vazio)'}")
+                                    if problemas:
+                                        st.warning(" • " + "\n • ".join(problemas))
+                    
+                    st.divider()
+                    
+                    # Contador de selecionados
+                    st.info(f"📊 **{len(st.session_state.bulk_selected_sources)} URL(s) selecionada(s)** de {len(fontes_filtradas)} ({len(fontes_unicas)} total)")
+                    
+                    # Preview dos dados selecionados
+                    if st.session_state.bulk_selected_sources:
+                        df_selecionado = df[df['Fonte'].isin(st.session_state.bulk_selected_sources)]
+                        
+                        with st.expander("👁️ Preview dos Dados Selecionados", expanded=False):
+                            st.dataframe(df_selecionado, use_container_width=True)
+                        
+                        # Botões de download
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            csv = df_selecionado.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                "📥 Download CSV Selecionados",
+                                csv,
+                                f"scraping_massa_{len(st.session_state.bulk_selected_sources)}_urls.csv",
+                                "text/csv",
+                                key='bulk_csv_selected',
+                                use_container_width=True
+                            )
+                        
+                        with col2:
+                            json_str = df_selecionado.to_json(orient='records', force_ascii=False, indent=2)
+                            st.download_button(
+                                "📥 Download JSON Selecionados",
+                                json_str,
+                                f"scraping_massa_{len(st.session_state.bulk_selected_sources)}_urls.json",
+                                "application/json",
+                                key='bulk_json_selected',
+                                use_container_width=True
+                            )
+                        
+                        with col3:
+                            # Download individual por URL
+                            if len(st.session_state.bulk_selected_sources) == 1:
+                                fonte_individual = st.session_state.bulk_selected_sources[0]
+                                df_individual = df[df['Fonte'] == fonte_individual]
+                                csv_individual = df_individual.to_csv(index=False).encode('utf-8')
+                                
+                                # Nome de arquivo limpo
+                                nome_arquivo = fonte_individual.split('/')[-1].replace('.html', '').replace('https://', '').replace('http://', '')[:30]
+                                
+                                st.download_button(
+                                    "📥 Download Individual",
+                                    csv_individual,
+                                    f"{nome_arquivo}.csv",
+                                    "text/csv",
+                                    key='bulk_csv_individual',
+                                    use_container_width=True
+                                )
+                    else:
+                        st.warning("⚠️ Selecione pelo menos uma URL para baixar")
+                    
+                    # Opção de baixar TUDO (não filtrado)
+                    st.divider()
+                    with st.expander("📦 Download de TODOS os Dados (não filtrado)", expanded=False):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            csv_all = df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                "📥 Download CSV (TODAS as URLs)",
+                                csv_all,
+                                "scraping_massa_completo.csv",
+                                "text/csv",
+                                key='bulk_csv_all'
+                            )
+                        with col2:
+                            json_all = df.to_json(orient='records', force_ascii=False, indent=2)
+                            st.download_button(
+                                "📥 Download JSON (TODAS as URLs)",
+                                json_all,
+                                "scraping_massa_completo.json",
+                                "application/json",
+                                key='bulk_json_all'
+                            )
                 else:
                     st.warning("⚠️ Nenhum dado foi extraído")
     
