@@ -1,9 +1,10 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
 import pandas as pd
 import json
 import os
+import re
 from io import StringIO
 from lxml import html as lxml_html
 from lxml import etree
@@ -48,6 +49,66 @@ def get_api_key(key_name):
     Obtém API key (wrapper para compatibilidade)
     """
     return get_secret(key_name)
+
+def clean_html_for_ai(html_content):
+    """
+    Limpa HTML removendo elementos inúteis para IA, mas mantém:
+    - Links (href)
+    - Imagens (src, alt)
+    - Conteúdo de texto
+    - Estrutura (classes, IDs)
+    - Atributos de dados (data-*)
+    
+    Remove:
+    - Scripts JavaScript
+    - Estilos CSS
+    - Comentários HTML
+    - Atributos de eventos (onclick, onload, etc.)
+    - Tags inúteis (noscript, iframe embed externos)
+    
+    Economia estimada: 50-80% de tokens
+    """
+    try:
+        soup = BeautifulSoup(html_content, 'lxml')
+        
+        # Remover scripts, styles, noscript
+        for tag in soup(['script', 'style', 'noscript']):
+            tag.decompose()
+        
+        # Remover comentários HTML (bs4.element.Comment)
+        for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+            comment.extract()
+        
+        # Remover iframes externos (mantém vídeos do YouTube, etc que podem ter info)
+        for iframe in soup.find_all('iframe'):
+            src = iframe.get('src', '')
+            # Manter só iframes de vídeo conhecidos
+            if not any(domain in src for domain in ['youtube.com', 'vimeo.com', 'dailymotion.com']):
+                iframe.decompose()
+        
+        # Remover atributos de eventos e outros inúteis
+        # MANTÉM: href, src, alt, class, id, data-*, aria-*, title, name, value, type, placeholder
+        for tag in soup.find_all(True):
+            attrs_to_remove = []
+            for attr in tag.attrs:
+                # Remover eventos (onclick, onload, etc.)
+                if attr.startswith('on'):
+                    attrs_to_remove.append(attr)
+                # Remover atributos de estilo inline
+                elif attr == 'style':
+                    attrs_to_remove.append(attr)
+                # Remover tracking e analytics
+                elif attr in ['data-gtm', 'data-analytics', 'data-track']:
+                    attrs_to_remove.append(attr)
+            
+            for attr in attrs_to_remove:
+                del tag[attr]
+        
+        return str(soup)
+    
+    except Exception as e:
+        # Se der erro na limpeza, retorna HTML original
+        return html_content
 
 def fetch_html(url, extraction_method='python', timeout=10):
     """
@@ -684,24 +745,8 @@ def extract_data_directly_with_ai(html_content, user_query, ai_provider, api_key
     Mais rápido e barato - ideal para consultas únicas.
     """
     
-    # Limpar HTML (mesmo processo do extract_with_ai)
-    soup = BeautifulSoup(html_content, 'lxml')
-    
-    for tag in soup(['script', 'style', 'noscript', 'iframe']):
-        tag.decompose()
-    
-    for tag in soup.find_all('svg'):
-        tag.decompose()
-    
-    for comment in soup.find_all(string=lambda text: isinstance(text, str) and text.strip().startswith('<!--')):
-        comment.extract()
-    
-    for tag in soup.find_all():
-        attrs_to_remove = [attr for attr in tag.attrs if attr.startswith('on')]
-        for attr in attrs_to_remove:
-            del tag[attr]
-    
-    html_clean = str(soup)
+    # Limpar HTML usando função inteligente (remove lixo, mantém conteúdo importante)
+    html_clean = clean_html_for_ai(html_content)
     html_preview = html_clean[:200000] if len(html_clean) > 200000 else html_clean
     
     prompt = f"""Você é um especialista em extração de dados web. Analise o HTML e extraia DIRETAMENTE os dados solicitados.
@@ -787,29 +832,8 @@ def extract_with_ai(html_content, user_query, ai_provider, api_key):
     Referência: blueprint:python_openai, blueprint:python_anthropic, blueprint:python_gemini
     """
     
-    # Limpar HTML: remover scripts, CSS, comentários - manter apenas estrutura e conteúdo
-    soup = BeautifulSoup(html_content, 'lxml')
-    
-    # Remover tags desnecessárias (MAS manter <img> que é importante!)
-    for tag in soup(['script', 'style', 'noscript', 'iframe']):
-        tag.decompose()
-    
-    # Remover SVGs mas manter IMGs
-    for tag in soup.find_all('svg'):
-        tag.decompose()
-    
-    # Remover comentários
-    for comment in soup.find_all(string=lambda text: isinstance(text, str) and text.strip().startswith('<!--')):
-        comment.extract()
-    
-    # Remover atributos de evento (onclick, onload, etc)
-    for tag in soup.find_all():
-        attrs_to_remove = [attr for attr in tag.attrs if attr.startswith('on')]
-        for attr in attrs_to_remove:
-            del tag[attr]
-    
-    # Converter para string limpa
-    html_clean = str(soup)
+    # Limpar HTML usando função inteligente (remove lixo, mantém conteúdo importante)
+    html_clean = clean_html_for_ai(html_content)
     
     # Limitar a 200k caracteres (muito generoso, cobre páginas grandes)
     html_preview = html_clean[:200000] if len(html_clean) > 200000 else html_clean
@@ -1507,11 +1531,44 @@ if st.session_state.soup is not None:
                                 selected_urls = [st.session_state.loaded_urls[i] for i in selected_indices]
                                 total = len(selected_urls)
                                 
+                                # Inicializar controles de processamento
+                                if 'processing_control' not in st.session_state:
+                                    st.session_state.processing_control = 'running'
+                                if 'processing_results' not in st.session_state:
+                                    st.session_state.processing_results = []
+                                if 'processing_index' not in st.session_state:
+                                    st.session_state.processing_index = 0
+                                
                                 progress_bar = st.progress(0)
                                 status_text = st.empty()
-                                results = []
+                                control_container = st.empty()
+                                results = st.session_state.processing_results
                                 
-                                for idx, loaded_url in enumerate(selected_urls):
+                                # Mostrar botões de controle
+                                with control_container.container():
+                                    col_a, col_b = st.columns(2)
+                                    with col_a:
+                                        if st.button("⏸️ Pausar", key="pause_processing", use_container_width=True):
+                                            st.session_state.processing_control = 'paused'
+                                            st.rerun()
+                                    with col_b:
+                                        if st.button("⏹️ Parar", key="stop_processing", use_container_width=True):
+                                            st.session_state.processing_control = 'stopped'
+                                            st.rerun()
+                                
+                                for idx, loaded_url in enumerate(selected_urls[st.session_state.processing_index:], start=st.session_state.processing_index):
+                                    # Verificar controle de processamento
+                                    if st.session_state.processing_control == 'stopped':
+                                        status_text.warning("⏹️ Processamento interrompido pelo usuário")
+                                        break
+                                    elif st.session_state.processing_control == 'paused':
+                                        status_text.info(f"⏸️ Processamento pausado em {idx}/{total}")
+                                        st.session_state.processing_index = idx
+                                        if st.button("▶️ Retomar Processamento", type="primary", key="resume_processing"):
+                                            st.session_state.processing_control = 'running'
+                                            st.rerun()
+                                        st.stop()
+                                    
                                     if loaded_url['status'] == 'error':
                                         results.append({
                                             'url': loaded_url['url'],
@@ -1625,12 +1682,22 @@ if st.session_state.soup is not None:
                                             })
                                     
                                     progress_bar.progress((idx + 1) / total)
+                                    st.session_state.processing_results = results
                                 
-                                st.session_state.multi_url_results = results
-                                progress_bar.empty()
-                                status_text.empty()
-                                st.success(f"✅ {len(results)} URL(s) processada(s)!")
-                                st.rerun()
+                                # Limpar controles se processamento completou sem interrupção
+                                if st.session_state.processing_control == 'running':
+                                    st.session_state.multi_url_results = results
+                                    st.session_state.processing_control = 'completed'
+                                    st.session_state.processing_results = []
+                                    st.session_state.processing_index = 0
+                                    control_container.empty()
+                                    progress_bar.empty()
+                                    status_text.empty()
+                                    st.success(f"✅ {len(results)} URL(s) processada(s)!")
+                                    st.rerun()
+                                else:
+                                    # Processameto parado/pausado - manter estado
+                                    st.session_state.processing_results = results
                         else:
                             # PROCESSAR PÁGINA ÚNICA
                             if extraction_mode == "identify_selectors":
@@ -1656,6 +1723,10 @@ if st.session_state.soup is not None:
                 if st.button("🗑️ Limpar", key="clear_ai_results", use_container_width=True):
                     st.session_state.ai_result = None
                     st.session_state.ai_direct_result = None
+                    # Limpar controles de processamento
+                    st.session_state.processing_control = 'running'
+                    st.session_state.processing_results = []
+                    st.session_state.processing_index = 0
                     st.rerun()
             
             if st.session_state.ai_result is not None:

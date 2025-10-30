@@ -6,6 +6,58 @@ This project is a Streamlit-based web scraping application designed to provide a
 
 ## Recent Changes
 
+### HTML Optimization & Processing Controls (October 30, 2025)
+- ✅ **Limpeza Inteligente de HTML**: Sistema de otimização para reduzir custos de API
+  - **Função `clean_html_for_ai()`**: Remove elementos desnecessários mantendo conteúdo importante
+  - **Remove**:
+    - Scripts JavaScript (`<script>`)
+    - Estilos CSS (`<style>`, atributos `style`)
+    - Comentários HTML
+    - Atributos de eventos (onclick, onload, etc.)
+    - Tags inúteis (noscript, iframes externos)
+    - Tracking/analytics (data-gtm, data-analytics)
+  - **Mantém**:
+    - Links (href)
+    - Imagens (src, alt)
+    - GIFs e vídeos do YouTube/Vimeo
+    - Estrutura (classes, IDs)
+    - Atributos de dados (data-*)
+    - Conteúdo de texto completo
+  - **Economia**: 50-80% menos tokens nas chamadas de IA
+  - **Aplicado em**:
+    - `extract_with_ai()` (Identificar Seletores)
+    - `extract_data_directly_with_ai()` (Extração Direta)
+    - Ambos os modos Multi-URL
+
+- ✅ **Controles de Processamento Multi-URL**: Pausar/Parar durante processamento em massa
+  - **Botões de Controle**:
+    - **⏸️ Pausar**: Pausa o processamento, permite retomar de onde parou
+    - **⏹️ Parar**: Interrompe completamente, salva progresso parcial
+    - **▶️ Retomar**: Continua processamento do ponto exato onde pausou
+  - **Session State**:
+    - `processing_control`: Status ('running', 'paused', 'stopped', 'completed')
+    - `processing_results`: Resultados parciais salvos
+    - `processing_index`: Índice da última URL processada
+  - **Benefícios UX**:
+    - Usuário pode parar processamento de 1000 URLs se perceber erro
+    - Não perde progresso ao pausar - pode retomar depois
+    - Evita desperdício de créditos de API em processamentos incorretos
+    - Controle total sobre operações longas
+
+- ✅ **Correção: Método de Extração no Multi-URL**: Proxy agora funciona corretamente
+  - **Problema Resolvido**: Multi-URL ignorava seleção "Proxy CORS" e usava sempre Python direto
+  - **Solução**: `loading_method` da sidebar agora salvo em `st.session_state.extraction_method`
+  - **Resultado**: Age gates (Steam, etc.) contornados automaticamente em Multi-URL
+  - **Cookies de Age Gate**: Adicionados no `proxy_server.py` para Steam
+    - `wants_mature_content`, `birthtime`, `lastagecheckage`, `mature_content`
+
+- ✅ **Explicação da IA Restaurada no Multi-URL**: Mensagens em azul voltaram
+  - **Campos `ai_explanation`** adicionados nos resultados Multi-URL:
+    - Modo "Identificar Seletores": mostra `explicacao` da IA
+    - Modo "Extrair Direto": mostra `resumo` da IA
+  - **Exibição**: Box azul com 💡 acima de cada URL processada
+  - **Conteúdo**: Explica quantos campos foram encontrados vs solicitados
+
 ### State Management Isolation (October 30, 2025)
 - ✅ **Isolamento de Estados**: Sistema de limpeza automática para evitar mistura de dados
   - **Problema Resolvido**: Dados de operações anteriores não aparecem mais em novos processamentos
