@@ -48,7 +48,7 @@ def get_api_key(key_name):
     """
     return get_secret(key_name)
 
-def apply_selectors_to_url(url, seletores, timeout=10):
+def apply_selectors_to_url(url, seletores, timeout=10, extraction_method='python'):
     """
     Aplica seletores identificados pela IA em uma URL específica
     
@@ -56,6 +56,7 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         url: URL para fazer scraping
         seletores: Lista de seletores identificados pela IA
         timeout: Timeout para requisição
+        extraction_method: 'python' ou 'proxy' - método de extração do HTML
     
     Returns:
         dict: {
@@ -66,12 +67,21 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         }
     """
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(url, headers=headers, timeout=timeout)
-        response.raise_for_status()
+        # Fazer requisição usando método escolhido
+        if extraction_method == 'proxy':
+            # Usar proxy server local
+            proxy_url = f'http://localhost:5001/proxy?url={url}'
+            response = requests.get(proxy_url, timeout=timeout)
+            response.raise_for_status()
+            html_content = response.text
+        else:
+            # Usar Python direto
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            html_content = response.text
         
-        soup = BeautifulSoup(response.text, 'lxml')
-        html_content = response.text
+        soup = BeautifulSoup(html_content, 'lxml')
         
         data_preview = []
         all_valores = {}  # {descricao: [valores]}
@@ -141,6 +151,133 @@ def apply_selectors_to_url(url, seletores, timeout=10):
         return {'url': url, 'data_preview': data_preview, 'data_full': data_full, 'error': None}
     except Exception as e:
         return {'url': url, 'data_preview': None, 'data_full': None, 'error': str(e)}
+
+def apply_ai_per_url(url, user_query, ai_provider, api_key, timeout=10, extraction_method='python'):
+    """
+    Analisa uma URL individualmente com IA e extrai os dados
+    
+    Args:
+        url: URL para processar
+        user_query: Descrição do que extrair
+        ai_provider: Provedor de IA (OpenAI, Anthropic, Gemini)
+        api_key: API key do provedor
+        timeout: Timeout para requisição
+        extraction_method: 'python' ou 'proxy' - método de extração do HTML
+    
+    Returns:
+        dict: {
+            'url': url,
+            'data_preview': lista com preview dos dados,
+            'data_full': lista com dados completos,
+            'ai_explanation': explicação da IA,
+            'error': None ou mensagem de erro
+        }
+    """
+    try:
+        # 1. Baixar HTML usando método escolhido
+        if extraction_method == 'proxy':
+            proxy_url = f'http://localhost:5001/proxy?url={url}'
+            response = requests.get(proxy_url, timeout=timeout)
+            response.raise_for_status()
+            html_content = response.text
+        else:
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            response = requests.get(url, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            html_content = response.text
+        
+        # 2. Chamar IA para identificar seletores
+        ai_result = extract_with_ai(html_content, user_query, ai_provider, api_key)
+        
+        if "error" in ai_result:
+            return {
+                'url': url,
+                'data_preview': None,
+                'data_full': None,
+                'ai_explanation': None,
+                'error': f"Erro na IA: {ai_result['error']}"
+            }
+        
+        # 3. Extrair dados usando os seletores identificados
+        soup = BeautifulSoup(html_content, 'lxml')
+        
+        data_preview = []
+        all_valores = {}
+        
+        for sel in ai_result.get('seletores', []):
+            seletor = sel.get('seletor', '')
+            tipo = sel.get('tipo', 'css')
+            descricao = sel.get('descricao', 'Campo')
+            
+            try:
+                extrair_html = any(palavra in descricao.lower() for palavra in ['imagem', 'imagens', 'gif', 'gifs', 'completa', 'completo', 'html', 'screenshot', 'media'])
+                
+                if tipo == 'css':
+                    elements = soup.select(seletor)
+                    valores = []
+                    for elem in elements:
+                        valor = extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html)
+                        if valor:
+                            valores.append(valor)
+                elif tipo == 'xpath':
+                    tree = lxml_html.fromstring(html_content)
+                    elements = tree.xpath(seletor)
+                    is_xpath_attr = isinstance(elements[0], str) if elements else False
+                    valores = []
+                    for elem in elements:
+                        valor = extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
+                        if valor:
+                            valores.append(valor)
+                else:
+                    valores = []
+                
+                all_valores[descricao] = valores
+                
+                if valores:
+                    data_preview.append({
+                        'Campo': descricao,
+                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v)[:100] for v in valores[:3]) + ('...' if len(valores) > 3 else ''),
+                        'Total Encontrado': len(valores)
+                    })
+                else:
+                    data_preview.append({
+                        'Campo': descricao,
+                        'Valor': 'Nenhum resultado',
+                        'Total Encontrado': 0
+                    })
+            except Exception as e:
+                all_valores[descricao] = []
+                data_preview.append({
+                    'Campo': descricao,
+                    'Valor': f'Erro: {str(e)}',
+                    'Total Encontrado': 0
+                })
+        
+        # Estruturar data_full
+        data_full = []
+        if all_valores:
+            max_len = max(len(v) for v in all_valores.values())
+            for i in range(max_len):
+                row = {}
+                for descricao, valores in all_valores.items():
+                    row[descricao] = valores[i] if i < len(valores) else ''
+                data_full.append(row)
+        
+        return {
+            'url': url,
+            'data_preview': data_preview,
+            'data_full': data_full,
+            'ai_explanation': ai_result.get('explicacao', ''),
+            'error': None
+        }
+    except Exception as e:
+        return {
+            'url': url,
+            'data_preview': None,
+            'data_full': None,
+            'ai_explanation': None,
+            'error': str(e)
+        }
 
 # 🔧 FUNÇÃO UNIFICADA DE EXTRAÇÃO (usada em todas as abas)
 def extract_element_value(elem, selector, tipo='css', is_xpath_attr=False, extrair_html=False):
@@ -1064,12 +1201,20 @@ if st.session_state.soup is not None:
                         
                         # Botão para processar todas as URLs
                         if not st.session_state.get('multi_url_results', []):
-                            if st.button("🚀 Aplicar Seletores em Todas as URLs", type="primary", use_container_width=True, key="process_multi_urls"):
+                            if st.button("🚀 Processar Todas as URLs", type="primary", use_container_width=True, key="process_multi_urls"):
                                 urls_to_process = [st.session_state.url] + st.session_state.additional_urls
                                 total_urls = len(urls_to_process)
+                                strategy = st.session_state.get('multi_url_strategy', 'same_selectors')
+                                extraction_method = st.session_state.get('extraction_method', 'python')
                                 
                                 progress_bar = st.progress(0)
                                 status_text = st.empty()
+                                
+                                # Informar qual estratégia está sendo usada
+                                if strategy == 'individual_ai':
+                                    st.info("🎯 Modo: Seletores individuais - IA analisará cada URL separadamente")
+                                else:
+                                    st.info("⚡ Modo: Mesmos seletores - aplicando seletores identificados em todas as URLs")
                                 
                                 results = []
                                 for idx, url in enumerate(urls_to_process):
@@ -1078,6 +1223,8 @@ if st.session_state.soup is not None:
                                     if url == st.session_state.url:
                                         # Já temos os dados da página atual
                                         all_data = []
+                                        all_valores = {}
+                                        
                                         for sel_idx, sel in enumerate(result['seletores'], 1):
                                             seletor = sel.get('seletor', '')
                                             tipo = sel.get('tipo', 'css')
@@ -1105,23 +1252,60 @@ if st.session_state.soup is not None:
                                                 else:
                                                     valores = []
                                                 
+                                                all_valores[descricao] = valores
+                                                
                                                 if valores:
                                                     all_data.append({
                                                         'Campo': descricao,
-                                                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v) for v in valores[:5]) + ('...' if len(valores) > 5 else ''),
+                                                        'Valor': valores[0] if len(valores) == 1 else ', '.join(str(v)[:100] for v in valores[:3]) + ('...' if len(valores) > 3 else ''),
                                                         'Total Encontrado': len(valores)
                                                     })
+                                                else:
+                                                    all_data.append({
+                                                        'Campo': descricao,
+                                                        'Valor': 'Nenhum resultado',
+                                                        'Total Encontrado': 0
+                                                    })
                                             except Exception as e:
+                                                all_valores[descricao] = []
                                                 all_data.append({
                                                     'Campo': descricao,
                                                     'Valor': f'Erro: {str(e)}',
                                                     'Total Encontrado': 0
                                                 })
                                         
-                                        results.append({'url': url, 'data_preview': all_data, 'data_full': all_data, 'error': None})
+                                        # Estruturar data_full
+                                        data_full = []
+                                        if all_valores:
+                                            max_len = max(len(v) for v in all_valores.values())
+                                            for i in range(max_len):
+                                                row = {}
+                                                for descricao, valores in all_valores.items():
+                                                    row[descricao] = valores[i] if i < len(valores) else ''
+                                                data_full.append(row)
+                                        
+                                        results.append({'url': url, 'data_preview': all_data, 'data_full': data_full, 'error': None})
                                     else:
                                         # Processar URLs adicionais
-                                        url_result = apply_selectors_to_url(url, result['seletores'])
+                                        if strategy == 'individual_ai':
+                                            # Modo individual: IA analisa cada URL separadamente
+                                            url_result = apply_ai_per_url(
+                                                url, 
+                                                user_query,
+                                                ai_provider,
+                                                api_key,
+                                                timeout=10,
+                                                extraction_method=extraction_method
+                                            )
+                                        else:
+                                            # Modo rápido: aplicar mesmos seletores
+                                            url_result = apply_selectors_to_url(
+                                                url, 
+                                                result['seletores'],
+                                                timeout=10,
+                                                extraction_method=extraction_method
+                                            )
+                                        
                                         results.append(url_result)
                                     
                                     progress_bar.progress((idx + 1) / total_urls)
@@ -1141,6 +1325,10 @@ if st.session_state.soup is not None:
                                     if url_result['error']:
                                         st.error(f"❌ Erro ao processar: {url_result['error']}")
                                     elif url_result.get('data_preview'):
+                                        # Mostrar explicação da IA se disponível (modo individual)
+                                        if url_result.get('ai_explanation'):
+                                            st.info(f"🤖 **IA:** {url_result['ai_explanation']}")
+                                        
                                         # Exibir preview dos dados
                                         df_preview = pd.DataFrame(url_result['data_preview'])
                                         st.dataframe(df_preview, use_container_width=True)
