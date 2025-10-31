@@ -50,6 +50,233 @@ def get_api_key(key_name):
     """
     return get_secret(key_name)
 
+def generate_html_table(data, title="Dados Extraídos", url=None):
+    """
+    Gera HTML bonito e formatado a partir dos dados
+    
+    Args:
+        data: DataFrame ou lista de dicts com os dados
+        title: Título da página HTML
+        url: URL de origem (opcional)
+    
+    Returns:
+        str: HTML formatado pronto para download
+    """
+    # Converter para DataFrame se necessário
+    if isinstance(data, list):
+        df = pd.DataFrame(data)
+    else:
+        df = data
+    
+    # Construir HTML
+    html = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }}
+        .header h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }}
+        .header p {{
+            opacity: 0.9;
+            font-size: 1.1em;
+        }}
+        .content {{
+            padding: 30px;
+        }}
+        .url-info {{
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }}
+        .url-info strong {{
+            color: #667eea;
+        }}
+        .stats {{
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }}
+        .stat-card {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 150px;
+            margin: 10px;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }}
+        .stat-card h3 {{
+            font-size: 2em;
+            margin-bottom: 5px;
+        }}
+        .stat-card p {{
+            opacity: 0.9;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        thead {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }}
+        th {{
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.5px;
+        }}
+        td {{
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }}
+        tbody tr {{
+            transition: background 0.3s ease;
+        }}
+        tbody tr:hover {{
+            background: #f5f5f5;
+        }}
+        tbody tr:nth-child(even) {{
+            background: #fafafa;
+        }}
+        tbody tr:nth-child(even):hover {{
+            background: #f0f0f0;
+        }}
+        a {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
+        .footer {{
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 0.9em;
+            border-top: 1px solid #e0e0e0;
+        }}
+        img {{
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 {title}</h1>
+            <p>Dados extraídos com Web Scraper Intuitivo</p>
+        </div>
+        <div class="content">
+"""
+    
+    # Adicionar URL se fornecida
+    if url:
+        html += f"""
+            <div class="url-info">
+                <strong>📍 URL:</strong> <a href="{url}" target="_blank">{url}</a>
+            </div>
+"""
+    
+    # Adicionar estatísticas
+    html += f"""
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>{len(df)}</h3>
+                    <p>Registros</p>
+                </div>
+                <div class="stat-card">
+                    <h3>{len(df.columns)}</h3>
+                    <p>Campos</p>
+                </div>
+            </div>
+"""
+    
+    # Adicionar tabela
+    html += """
+            <table>
+                <thead>
+                    <tr>
+"""
+    
+    for col in df.columns:
+        html += f"                        <th>{col}</th>\n"
+    
+    html += """
+                    </tr>
+                </thead>
+                <tbody>
+"""
+    
+    for _, row in df.iterrows():
+        html += "                    <tr>\n"
+        for col in df.columns:
+            value = row[col]
+            # Detectar URLs de imagens e renderizar como <img>
+            if isinstance(value, str) and (value.startswith('http') and any(ext in value.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp'])):
+                html += f'                        <td><img src="{value}" alt="Imagem"></td>\n'
+            # Detectar URLs normais e tornar clicáveis
+            elif isinstance(value, str) and value.startswith('http'):
+                html += f'                        <td><a href="{value}" target="_blank">{value[:50]}...</a></td>\n'
+            else:
+                html += f"                        <td>{value}</td>\n"
+        html += "                    </tr>\n"
+    
+    html += """
+                </tbody>
+            </table>
+        </div>
+        <div class="footer">
+            <p>Gerado automaticamente pelo Web Scraper Intuitivo 🚀</p>
+        </div>
+    </div>
+</body>
+</html>"""
+    
+    return html
+
 def clean_html_for_ai(html_content):
     """
     Limpa HTML removendo elementos inúteis para IA, mas mantém:
@@ -1455,65 +1682,139 @@ if st.session_state.soup is not None:
                             if url_result.get('data_full'):
                                 df_full = pd.DataFrame(url_result['data_full'])
                                 
-                                col1, col2 = st.columns(2)
+                                col1, col2, col3 = st.columns(3)
                                 with col1:
                                     csv = df_full.to_csv(index=False).encode('utf-8')
                                     st.download_button(
-                                        "📥 Download CSV (Completo)",
+                                        "📥 CSV",
                                         csv,
                                         f"dados_url_{idx}.csv",
                                         "text/csv",
-                                        key=f'multi_new_csv_{idx}'
+                                        key=f'multi_new_csv_{idx}',
+                                        use_container_width=True
                                     )
                                 with col2:
                                     json_str = df_full.to_json(orient='records', force_ascii=False, indent=2)
                                     st.download_button(
-                                        "📥 Download JSON (Completo)",
+                                        "📥 JSON",
                                         json_str,
                                         f"dados_url_{idx}.json",
                                         "application/json",
-                                        key=f'multi_new_json_{idx}'
+                                        key=f'multi_new_json_{idx}',
+                                        use_container_width=True
+                                    )
+                                with col3:
+                                    html_output = generate_html_table(
+                                        df_full, 
+                                        title=f"Dados URL {idx}",
+                                        url=url_result['url']
+                                    )
+                                    st.download_button(
+                                        "📥 HTML",
+                                        html_output,
+                                        f"dados_url_{idx}.html",
+                                        "text/html",
+                                        key=f'multi_new_html_{idx}',
+                                        use_container_width=True
                                     )
                         else:
                             st.warning("⚠️ Nenhum dado extraído desta URL")
                 
-                # Download combinado de todas as URLs
+                # Download combinado com seleção de URLs
                 st.markdown("---")
-                st.markdown("### 📦 Download Combinado")
+                st.markdown("### 📦 Download Seletivo")
                 
-                all_combined_data = []
-                for url_result in st.session_state.multi_url_results:
-                    if url_result.get('data_full') and not url_result.get('error'):
-                        for item in url_result['data_full']:
-                            row = {'URL': url_result['url']}
-                            row.update(item)
-                            all_combined_data.append(row)
+                # Inicializar checkboxes de download se não existir
+                if 'download_url_selection' not in st.session_state:
+                    st.session_state.download_url_selection = {i: True for i in range(len(st.session_state.multi_url_results))}
                 
-                if all_combined_data:
-                    df_combined = pd.DataFrame(all_combined_data)
-                    st.info(f"📊 Total de registros: {len(all_combined_data)}")
+                # Botões para marcar/desmarcar todas
+                col_btn1, col_btn2, col_btn3 = st.columns(3)
+                with col_btn1:
+                    if st.button("✅ Marcar Todas", use_container_width=True):
+                        st.session_state.download_url_selection = {i: True for i in range(len(st.session_state.multi_url_results))}
+                        st.rerun()
+                with col_btn2:
+                    if st.button("❌ Desmarcar Todas", use_container_width=True):
+                        st.session_state.download_url_selection = {i: False for i in range(len(st.session_state.multi_url_results))}
+                        st.rerun()
+                with col_btn3:
+                    selected_count = sum(1 for v in st.session_state.download_url_selection.values() if v)
+                    st.metric("URLs Selecionadas", f"{selected_count}/{len(st.session_state.multi_url_results)}")
+                
+                # Checkboxes para cada URL
+                st.markdown("**Selecione quais URLs incluir no download:**")
+                for idx, url_result in enumerate(st.session_state.multi_url_results):
+                    col_check, col_url = st.columns([1, 9])
+                    with col_check:
+                        checked = st.checkbox(
+                            "✓",
+                            value=st.session_state.download_url_selection.get(idx, True),
+                            key=f'download_check_{idx}',
+                            label_visibility="collapsed"
+                        )
+                        st.session_state.download_url_selection[idx] = checked
+                    with col_url:
+                        status_icon = "✅" if not url_result.get('error') else "❌"
+                        url_short = url_result['url'][:80] + "..." if len(url_result['url']) > 80 else url_result['url']
+                        records_count = len(url_result.get('data_full', [])) if url_result.get('data_full') else 0
+                        st.caption(f"{status_icon} **URL {idx+1}:** {url_short} ({records_count} registros)")
+                
+                # Coletar dados selecionados
+                selected_combined_data = []
+                for idx, url_result in enumerate(st.session_state.multi_url_results):
+                    if st.session_state.download_url_selection.get(idx, False):
+                        if url_result.get('data_full') and not url_result.get('error'):
+                            for item in url_result['data_full']:
+                                row = {'URL': url_result['url']}
+                                row.update(item)
+                                selected_combined_data.append(row)
+                
+                if selected_combined_data:
+                    df_selected = pd.DataFrame(selected_combined_data)
+                    selected_count = sum(1 for v in st.session_state.download_url_selection.values() if v)
+                    st.info(f"📊 Total de registros selecionados: {len(selected_combined_data)} de {selected_count} URL(s)")
                     
-                    col1, col2 = st.columns(2)
+                    col1, col2, col3 = st.columns(3)
                     with col1:
-                        csv_combined = df_combined.to_csv(index=False).encode('utf-8')
+                        csv_selected = df_selected.to_csv(index=False).encode('utf-8')
+                        filename_csv = f"dados_{selected_count}_urls.csv" if selected_count > 1 else "dados_1_url.csv"
                         st.download_button(
-                            "📥 Download CSV (Todas as URLs)",
-                            csv_combined,
-                            "dados_todas_urls.csv",
+                            "📥 CSV Selecionadas",
+                            csv_selected,
+                            filename_csv,
                             "text/csv",
-                            key='multi_new_all_csv',
+                            key='multi_selected_csv',
                             use_container_width=True
                         )
                     with col2:
-                        json_combined = df_combined.to_json(orient='records', force_ascii=False, indent=2)
+                        json_selected = df_selected.to_json(orient='records', force_ascii=False, indent=2)
+                        filename_json = f"dados_{selected_count}_urls.json" if selected_count > 1 else "dados_1_url.json"
                         st.download_button(
-                            "📥 Download JSON (Todas as URLs)",
-                            json_combined,
-                            "dados_todas_urls.json",
+                            "📥 JSON Selecionadas",
+                            json_selected,
+                            filename_json,
                             "application/json",
-                            key='multi_new_all_json',
+                            key='multi_selected_json',
                             use_container_width=True
                         )
+                    with col3:
+                        html_selected = generate_html_table(
+                            df_selected,
+                            title=f"Dados de {selected_count} URL(s) Selecionada(s)",
+                            url=None
+                        )
+                        filename_html = f"dados_{selected_count}_urls.html" if selected_count > 1 else "dados_1_url.html"
+                        st.download_button(
+                            "📥 HTML Selecionadas",
+                            html_selected,
+                            filename_html,
+                            "text/html",
+                            key='multi_selected_html',
+                            use_container_width=True
+                        )
+                else:
+                    st.warning("⚠️ Nenhuma URL selecionada ou sem dados válidos")
                 
                 # Botão para limpar resultados e processar novamente
                 if st.button("🔄 Processar Novamente", use_container_width=True):
@@ -2030,27 +2331,43 @@ if st.session_state.soup is not None:
                             df_extracted = pd.DataFrame(all_data)
                             st.dataframe(df_extracted, use_container_width=True)
                             
-                            col1, col2, col3 = st.columns(3)
+                            col1, col2, col3, col4 = st.columns(4)
                             with col1:
                                 csv = df_extracted.to_csv(index=False).encode('utf-8')
                                 st.download_button(
-                                    "📥 Download CSV",
+                                    "📥 CSV",
                                     csv,
                                     "dados_ia_extraidos.csv",
                                     "text/csv",
-                                    key='ai_csv'
+                                    key='ai_csv',
+                                    use_container_width=True
                                 )
                             with col2:
                                 json_str = df_extracted.to_json(orient='records', force_ascii=False, indent=2)
                                 st.download_button(
-                                    "📥 Download JSON",
+                                    "📥 JSON",
                                     json_str,
                                     "dados_ia_extraidos.json",
                                     "application/json",
-                                    key='ai_json'
+                                    key='ai_json',
+                                    use_container_width=True
                                 )
                             with col3:
-                                if st.button("🎨 Visualização Melhorada", use_container_width=True, key="better_view_btn"):
+                                html_output = generate_html_table(
+                                    df_extracted,
+                                    title="Dados Extraídos com IA",
+                                    url=st.session_state.get('url')
+                                )
+                                st.download_button(
+                                    "📥 HTML",
+                                    html_output,
+                                    "dados_ia_extraidos.html",
+                                    "text/html",
+                                    key='ai_html',
+                                    use_container_width=True
+                                )
+                            with col4:
+                                if st.button("🎨 Visualizar", use_container_width=True, key="better_view_btn"):
                                     st.session_state.show_better_view = not st.session_state.get('show_better_view', False)
                             
                             if st.session_state.get('show_better_view', False):
@@ -2242,25 +2559,41 @@ if st.session_state.soup is not None:
                         st.dataframe(df_direct, use_container_width=True)
                         
                         # Downloads
-                        col1, col2 = st.columns(2)
+                        col1, col2, col3 = st.columns(3)
                         with col1:
                             csv_direct = df_direct.to_csv(index=False).encode('utf-8')
                             st.download_button(
-                                "📥 Download CSV",
+                                "📥 CSV",
                                 csv_direct,
                                 "dados_ia_direto.csv",
                                 "text/csv",
-                                key='direct_csv'
+                                key='direct_csv',
+                                use_container_width=True
                             )
                         with col2:
                             # JSON com dados originais (não da tabela)
                             json_direct = json.dumps(direct_result['dados'], ensure_ascii=False, indent=2)
                             st.download_button(
-                                "📥 Download JSON",
+                                "📥 JSON",
                                 json_direct,
                                 "dados_ia_direto.json",
                                 "application/json",
-                                key='direct_json'
+                                key='direct_json',
+                                use_container_width=True
+                            )
+                        with col3:
+                            html_output = generate_html_table(
+                                df_direct,
+                                title="Dados Extraídos Direto com IA",
+                                url=st.session_state.get('url')
+                            )
+                            st.download_button(
+                                "📥 HTML",
+                                html_output,
+                                "dados_ia_direto.html",
+                                "text/html",
+                                key='direct_html',
+                                use_container_width=True
                             )
     
     # Tab 4: Scraping em Massa
