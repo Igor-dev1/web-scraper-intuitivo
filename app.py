@@ -1724,9 +1724,13 @@ if st.session_state.soup is not None:
                 st.markdown("---")
                 st.markdown("### 📦 Download Seletivo")
                 
-                # Inicializar checkboxes de download se não existir
+                # Inicializar checkboxes de download ou resetar se tamanho mudou
+                current_results_count = len(st.session_state.multi_url_results)
                 if 'download_url_selection' not in st.session_state:
-                    st.session_state.download_url_selection = {i: True for i in range(len(st.session_state.multi_url_results))}
+                    st.session_state.download_url_selection = {i: True for i in range(current_results_count)}
+                elif len(st.session_state.download_url_selection) != current_results_count:
+                    # Resetar seleção quando novos resultados chegarem (tamanho diferente)
+                    st.session_state.download_url_selection = {i: True for i in range(current_results_count)}
                 
                 # Botões para marcar/desmarcar todas
                 col_btn1, col_btn2, col_btn3 = st.columns(3)
