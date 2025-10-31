@@ -52,7 +52,7 @@ def get_api_key(key_name):
 
 def generate_html_table(data, title="Dados Extraídos", url=None):
     """
-    Gera HTML bonito e formatado a partir dos dados
+    Gera HTML bonito e formatado a partir dos dados com cards individuais
     
     Args:
         data: DataFrame ou lista de dicts com os dados
@@ -60,7 +60,7 @@ def generate_html_table(data, title="Dados Extraídos", url=None):
         url: URL de origem (opcional)
     
     Returns:
-        str: HTML formatado pronto para download
+        str: HTML formatado pronto para download com layout de cards
     """
     # Converter para DataFrame se necessário
     if isinstance(data, list):
@@ -68,7 +68,7 @@ def generate_html_table(data, title="Dados Extraídos", url=None):
     else:
         df = data
     
-    # Construir HTML
+    # Construir HTML com layout de cards profissional
     html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -82,124 +82,181 @@ def generate_html_table(data, title="Dados Extraídos", url=None):
             box-sizing: border-box;
         }}
         body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
             padding: 20px;
             min-height: 100vh;
+            line-height: 1.6;
         }}
         .container {{
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
         }}
         .header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px;
+            padding: 40px;
+            border-radius: 20px;
             text-align: center;
+            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+            margin-bottom: 30px;
         }}
         .header h1 {{
-            font-size: 2.5em;
+            font-size: 2.8em;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            font-weight: 700;
         }}
         .header p {{
-            opacity: 0.9;
-            font-size: 1.1em;
+            opacity: 0.95;
+            font-size: 1.2em;
+            font-weight: 300;
         }}
-        .content {{
-            padding: 30px;
-        }}
-        .url-info {{
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            border-left: 4px solid #667eea;
-        }}
-        .url-info strong {{
+        .url-badge {{
+            background: white;
             color: #667eea;
+            padding: 15px 25px;
+            border-radius: 50px;
+            display: inline-block;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-weight: 500;
+        }}
+        .url-badge a {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .url-badge a:hover {{
+            text-decoration: underline;
         }}
         .stats {{
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
         }}
-        .stat-card {{
+        .stat-box {{
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease;
+        }}
+        .stat-box:hover {{
+            transform: translateY(-5px);
+        }}
+        .stat-box h2 {{
+            font-size: 3em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }}
+        .stat-box p {{
+            color: #666;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }}
+        .items-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }}
+        .item-card {{
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            transition: all 0.3s ease;
+            border: 1px solid #e0e0e0;
+        }}
+        .item-card:hover {{
+            transform: translateY(-8px);
+            box-shadow: 0 15px 50px rgba(102, 126, 234, 0.2);
+        }}
+        .card-header {{
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
-            border-radius: 10px;
+            font-weight: 700;
+            font-size: 1.3em;
             text-align: center;
-            min-width: 150px;
-            margin: 10px;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
         }}
-        .stat-card h3 {{
-            font-size: 2em;
-            margin-bottom: 5px;
-        }}
-        .stat-card p {{
-            opacity: 0.9;
-        }}
-        table {{
+        .card-image {{
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }}
-        thead {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }}
-        th {{
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.9em;
-            letter-spacing: 0.5px;
-        }}
-        td {{
-            padding: 12px 15px;
-            border-bottom: 1px solid #e0e0e0;
-        }}
-        tbody tr {{
-            transition: background 0.3s ease;
-        }}
-        tbody tr:hover {{
+            height: 300px;
+            object-fit: cover;
             background: #f5f5f5;
+            display: block;
         }}
-        tbody tr:nth-child(even) {{
-            background: #fafafa;
+        .card-content {{
+            padding: 25px;
         }}
-        tbody tr:nth-child(even):hover {{
-            background: #f0f0f0;
+        .field {{
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
         }}
-        a {{
+        .field:last-child {{
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }}
+        .field-label {{
+            font-weight: 700;
+            color: #667eea;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }}
+        .field-value {{
+            color: #333;
+            font-size: 1.05em;
+            word-wrap: break-word;
+        }}
+        .field-value a {{
             color: #667eea;
             text-decoration: none;
             font-weight: 500;
         }}
-        a:hover {{
+        .field-value a:hover {{
             text-decoration: underline;
         }}
-        .footer {{
-            text-align: center;
-            padding: 20px;
-            color: #888;
-            font-size: 0.9em;
-            border-top: 1px solid #e0e0e0;
+        .image-field {{
+            display: block;
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-top: 10px;
         }}
-        img {{
-            max-width: 100px;
-            max-height: 100px;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        .footer {{
+            background: white;
+            text-align: center;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-top: 40px;
+        }}
+        .footer p {{
+            color: #888;
+            font-size: 1em;
+        }}
+        @media (max-width: 768px) {{
+            .items-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .header h1 {{
+                font-size: 2em;
+            }}
         }}
     </style>
 </head>
@@ -208,68 +265,105 @@ def generate_html_table(data, title="Dados Extraídos", url=None):
         <div class="header">
             <h1>🎯 {title}</h1>
             <p>Dados extraídos com Web Scraper Intuitivo</p>
-        </div>
-        <div class="content">
 """
     
     # Adicionar URL se fornecida
     if url:
         html += f"""
-            <div class="url-info">
-                <strong>📍 URL:</strong> <a href="{url}" target="_blank">{url}</a>
+            <div class="url-badge">
+                📍 <a href="{url}" target="_blank">{url[:100]}{'...' if len(url) > 100 else ''}</a>
             </div>
 """
     
-    # Adicionar estatísticas
-    html += f"""
-            <div class="stats">
-                <div class="stat-card">
-                    <h3>{len(df)}</h3>
-                    <p>Registros</p>
-                </div>
-                <div class="stat-card">
-                    <h3>{len(df.columns)}</h3>
-                    <p>Campos</p>
-                </div>
+    html += """
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <h2>{}</h2>
+                <p>Registros</p>
             </div>
-"""
+            <div class="stat-box">
+                <h2>{}</h2>
+                <p>Campos</p>
+            </div>
+        </div>
+        
+        <div class="items-grid">
+""".format(len(df), len(df.columns))
     
-    # Adicionar tabela
-    html += """
-            <table>
-                <thead>
-                    <tr>
-"""
-    
-    for col in df.columns:
-        html += f"                        <th>{col}</th>\n"
-    
-    html += """
-                    </tr>
-                </thead>
-                <tbody>
-"""
-    
-    for _, row in df.iterrows():
-        html += "                    <tr>\n"
+    # Criar um card para cada registro
+    for idx, row in df.iterrows():
+        item_number = idx + 1
+        
+        # Identificar campo de imagem (primeiro campo com URL de imagem)
+        image_url = None
+        image_field_name = None
         for col in df.columns:
             value = row[col]
-            # Detectar URLs de imagens e renderizar como <img>
-            if isinstance(value, str) and (value.startswith('http') and any(ext in value.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp'])):
-                html += f'                        <td><img src="{value}" alt="Imagem"></td>\n'
-            # Detectar URLs normais e tornar clicáveis
-            elif isinstance(value, str) and value.startswith('http'):
-                html += f'                        <td><a href="{value}" target="_blank">{value[:50]}...</a></td>\n'
+            if isinstance(value, str) and value.startswith('http') and any(ext in value.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']):
+                image_url = value
+                image_field_name = col
+                break
+        
+        html += f"""
+            <div class="item-card">
+                <div class="card-header">
+                    Item #{item_number}
+                </div>
+"""
+        
+        # Se encontrou imagem, mostrar no topo do card
+        if image_url:
+            html += f"""
+                <img src="{image_url}" alt="Imagem do Item #{item_number}" class="card-image" onerror="this.style.display='none'">
+"""
+        
+        html += """
+                <div class="card-content">
+"""
+        
+        # Adicionar campos
+        for col in df.columns:
+            value = row[col]
+            
+            # Pular o campo de imagem se já foi mostrado no topo
+            if col == image_field_name and image_url:
+                continue
+            
+            html += f"""
+                    <div class="field">
+                        <div class="field-label">{col}</div>
+                        <div class="field-value">
+"""
+            
+            # Detectar tipo de conteúdo
+            if isinstance(value, str) and value.startswith('http'):
+                # Detectar se é imagem adicional
+                if any(ext in value.lower() for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']):
+                    html += f'<img src="{value}" alt="{col}" class="image-field" onerror="this.style.display=\'none\'">'
+                else:
+                    # Link normal
+                    html += f'<a href="{value}" target="_blank">🔗 {value[:80]}{"..." if len(value) > 80 else ""}</a>'
             else:
-                html += f"                        <td>{value}</td>\n"
-        html += "                    </tr>\n"
+                # Texto normal
+                html += str(value) if value is not None else "—"
+            
+            html += """
+                        </div>
+                    </div>
+"""
+        
+        html += """
+                </div>
+            </div>
+"""
     
     html += """
-                </tbody>
-            </table>
         </div>
+        
         <div class="footer">
-            <p>Gerado automaticamente pelo Web Scraper Intuitivo 🚀</p>
+            <p>🚀 Gerado automaticamente pelo <strong>Web Scraper Intuitivo</strong></p>
         </div>
     </div>
 </body>
