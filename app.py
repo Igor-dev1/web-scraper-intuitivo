@@ -2800,9 +2800,14 @@ if st.session_state.soup is not None:
                 
                 for idx, (identifier, html_content) in enumerate(items_to_process):
                     status_text.text(f"Processando {idx + 1}/{total}: {identifier}")
+                    
+                    # Variável para armazenar HTML baixado
+                    fetched_html = None
+                    
                     try:
                         # Se for arquivo HTML, usar o conteúdo carregado
                         if html_content:
+                            fetched_html = html_content
                             soup = BeautifulSoup(html_content, 'lxml')
                         else:
                             # Se for URL, fazer requisição
@@ -2811,7 +2816,13 @@ if st.session_state.soup is not None:
                             }
                             response = requests.get(identifier, headers=headers, timeout=10)
                             response.raise_for_status()
-                            soup = BeautifulSoup(response.text, 'lxml')
+                            fetched_html = response.text
+                            soup = BeautifulSoup(fetched_html, 'lxml')
+                        
+                        # VALIDAÇÃO: Verificar se o HTML foi obtido com sucesso
+                        if not fetched_html or len(fetched_html.strip()) == 0:
+                            st.error(f"❌ {identifier}: HTML vazio ou inválido")
+                            continue
                         if use_ai_selectors:
                             row = {'Fonte': identifier}
                             for sel in st.session_state.ai_result['seletores']:
@@ -2827,16 +2838,16 @@ if st.session_state.soup is not None:
                                         valores = []
                                         for elem in elements:
                                             valor = extract_element_value(elem, seletor, tipo='css', extrair_html=extrair_html)
-                                            if valor:
+                                            if valor is not None and str(valor).strip() != '':
                                                 valores.append(valor)
                                     elif tipo == 'xpath':
-                                        tree = lxml_html.fromstring(html_content if html_content else response.text)
+                                        tree = lxml_html.fromstring(fetched_html)
                                         elements = tree.xpath(seletor)
                                         is_xpath_attr = isinstance(elements[0], str) if elements else False
                                         valores = []
                                         for elem in elements:
                                             valor = extract_element_value(elem, seletor, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
-                                            if valor:
+                                            if valor is not None and str(valor).strip() != '':
                                                 valores.append(valor)
                                     else:
                                         valores = []
@@ -2867,13 +2878,13 @@ if st.session_state.soup is not None:
                                     ])
                                     
                                     if is_xpath:
-                                        tree = lxml_html.fromstring(html_content if html_content else response.text)
+                                        tree = lxml_html.fromstring(fetched_html)
                                         elements = tree.xpath(selector)
                                         is_xpath_attr = isinstance(elements[0], str) if elements else False
                                         valores = []
                                         for elem in elements:  # Remover limite [:5] para pegar todos
                                             valor = extract_element_value(elem, selector, tipo='xpath', is_xpath_attr=is_xpath_attr, extrair_html=extrair_html)
-                                            if valor:
+                                            if valor is not None and str(valor).strip() != '':
                                                 valores.append(valor)
                                     else:
                                         # CSS
@@ -2881,7 +2892,7 @@ if st.session_state.soup is not None:
                                         valores = []
                                         for elem in elements:  # Remover limite [:5] para pegar todos
                                             valor = extract_element_value(elem, selector, tipo='css', extrair_html=extrair_html)
-                                            if valor:
+                                            if valor is not None and str(valor).strip() != '':
                                                 valores.append(valor)
                                     
                                     # Usar sempre o seletor completo como nome da coluna
@@ -2895,7 +2906,7 @@ if st.session_state.soup is not None:
                             if bulk_method == "Seletor CSS":
                                 elements = soup.select(bulk_selector)
                             elif bulk_method == "XPath":
-                                tree = lxml_html.fromstring(html_content if html_content else response.text)
+                                tree = lxml_html.fromstring(fetched_html)
                                 elements = tree.xpath(bulk_selector)
                             elif bulk_method == "Tag HTML":
                                 elements = soup.find_all(bulk_selector)
@@ -2922,8 +2933,11 @@ if st.session_state.soup is not None:
                                     if extract_bulk_attrs and bulk_attr_name:
                                         row[bulk_attr_name] = elem.get(bulk_attr_name, '')
                                 all_data.append(row)
+                    except requests.exceptions.RequestException as e:
+                        st.error(f"❌ Falha ao baixar {identifier[:80]}: {str(e)}")
+                        continue
                     except Exception as e:
-                        st.warning(f"⚠️ Erro ao processar {identifier}: {str(e)}")
+                        st.warning(f"⚠️ Erro ao processar {identifier[:80]}: {str(e)}")
                     progress_bar.progress((idx + 1) / total)
                 status_text.empty()
                 progress_bar.empty()

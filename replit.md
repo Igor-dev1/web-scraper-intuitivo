@@ -38,7 +38,8 @@ Preferred communication style: Simple, everyday language in Portuguese (Brasil).
 - **API Key Management**: All API keys configured via Streamlit Secrets for security and compatibility with Streamlit Cloud.
 - **Proxy Support**: Direct integration with `corsproxy.io` to bypass CORS issues and age gates, compatible with various deployment environments.
 - **Optimized AI Calls**: Intelligent HTML cleaning (`clean_html_for_ai()`) removes unnecessary elements to reduce token consumption by 50-80%.
-- **Enhanced Export**: HTML export includes styled, responsive tables with smart detection for image URLs and clickable links.
+- **Enhanced Export**: HTML export includes styled, responsive card-based layout with featured images (300px), organized fields, and smart detection for image URLs and clickable links.
+- **Robust Error Handling**: Bulk scraping validates HTML fetch success before extraction, displays clear error messages for failed URLs, and doesn't discard valid values like "0" or empty strings.
 
 ## External Dependencies
 
